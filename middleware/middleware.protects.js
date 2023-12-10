@@ -4,7 +4,7 @@
 
 const {errorHandle, useAsync, utils} = require('../core');
 const CryptoJS = require("crypto-js");
-const ModelPerson = require('../models/model.person');
+const ModelPerson = require('../models/model.admin');
 
 //body safe state
 exports.bodyParser = (req, res, next) => {

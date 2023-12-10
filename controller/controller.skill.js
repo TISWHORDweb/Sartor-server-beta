@@ -2,7 +2,7 @@ const express = require('express')
 const dotenv = require("dotenv")
 dotenv.config()
 const { useAsync, utils, errorHandle, } = require('../core');
-const ModelPerson = require('../models/model.person');
+const ModelPerson = require('../models/model.admin');
 const ModelSkill = require('../models/model.skill');
 
 

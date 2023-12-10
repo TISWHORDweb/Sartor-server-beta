@@ -13,7 +13,7 @@ const dotenv = require("dotenv")
 dotenv.config()
 const request = require('request');
 const { useAsync, utils, errorHandle, } = require('./../core');
-const ModelPerson = require('../models/model.person')
+const ModelPerson = require('../models/model.admin')
 
 
 

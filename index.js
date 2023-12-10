@@ -4,7 +4,7 @@ const expressLayouts = require('express-ejs-layouts');
 const cors = require('cors')
 const path = require('path');
 const bodyParser = require('body-parser')
-const CVAuth = require('./routes/route.auth')
+const Auth = require('./routes/route.auth')
 const CVUser = require('./routes/route.user')
 
 const mongoose = require('mongoose')
@@ -30,7 +30,7 @@ app.use('/docs', express.static(path.join(__dirname, 'docs')));
 app.use(bodyParser.json())
 
 
-app.use("/api/v1/auth", CVAuth)
+app.use("/api/v1/auth", Auth)
 app.use("/api/v1/user", CVUser)
 
 
