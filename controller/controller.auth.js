@@ -20,9 +20,9 @@ const request = require('request');
 const { notify } = require('../core/core.utils');
 const { useAsync, utils, errorHandle, } = require('./../core');
 // const MindCastFavourite = require('../models/model.favourites')
-const ModelPerson = require('../models/model.admin')
 const { EmailNote } = require('../core/core.notify')
 const ModelAdmin = require('../models/model.admin')
+const ModelSalesAgent = require('../models/model.salesAgent')
 
 
 
@@ -47,18 +47,9 @@ exports.AdminRegister = useAsync(async (req, res) => {
 
             await admin.save().then(data => {
 
-                const user = {
-                    _id: data._id,
-                    fullName: data.fullName,
-                    address: data.address,
-                    email: data.email,
-                    phone: data.phone,
-                    image: data.image,
-                    token: data.token,
-                    adminType: data.adminType
-                }
+                data.password = "********************************"
 
-                return res.json(utils.JParser('Congratulation Account created successfully', !!user, { user }));
+                return res.json(utils.JParser('Congratulation Account created successfully', !!data, data));
 
             })
         }
@@ -67,21 +58,32 @@ exports.AdminRegister = useAsync(async (req, res) => {
     }
 })
 
-exports.adminLogin = useAsync(async (req, res) => {
-
+exports.AdminLogin = useAsync(async (req, res) => {
     try {
         res.header("Access-Control-Allow-Origin", "*");
-        let adminPassword;
-        const admin = await ModelPerson.findOne({ email: req.body.email })
+        const admin = await ModelAdmin.findOne({ email: req.body.email })
         let resultt;
+        let adminPassword;
+        let name;
+        let body;
+        let subject;
+
         if (admin) {
-            resultt = admin.blocked
-            adminPassword = admin.password
+            email= admin.email;
+            resultt = admin.blocked;
+            adminPassword = admin.password;
+            name = admin.fullName;
+            body = "Login detected";
+            subject = "Login Notification";
 
             //update user if regToken is passed
             if (!!req.body.token) await admin.update({ token: req.body.token })
 
-        } else if (resultt === true) {
+        } else {
+            return res.json(utils.JParser("Invalid email or password", false, []));
+        }
+        
+        if (resultt === true) {
             return res.json(utils.JParser('Sorry your account is blocked', false, []));
         }
 
@@ -96,7 +98,9 @@ exports.adminLogin = useAsync(async (req, res) => {
                 const lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
 
                 await ModelAdmin.updateOne({ _id: admin._id }, { $set: {token: token, lastLogin: lastLogin } }).then(() => {
-                    return res.json(utils.JParser('logged in successfuly', true, { admin, token }));
+                    EmailNote(email,name,body,subject)
+                    admin.token = token
+                    return res.json(utils.JParser('logged in successfuly', true,  admin ));
                 })
             }
         }
@@ -105,6 +109,89 @@ exports.adminLogin = useAsync(async (req, res) => {
     }
 })
 
+exports.SalesAgentRegister = useAsync(async (req, res) => {
+
+    if (req.body.password) {
+        req.body.password = await bcrypt.hash(req.body.password, 13)
+    }
+
+    try {
+        if (!req.body.email  || !req.body.password ) return res.json(utils.JParser('please check the fields', false, []));
+
+        req.body.token = sha1(req.body.email + new Date())
+        req.body.lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
+
+        const validates = await ModelSalesAgent.findOne({ email: req.body.email })
+        if (validates) {
+            return res.json(utils.JParser('There is another Sales agent with this email', false, []));
+        } else {
+
+            let salesAgent = await new ModelSalesAgent(req.body)
+
+            await salesAgent.save().then(data => {
+
+                data.password = "********************************"
+
+                return res.json(utils.JParser('Congratulation Account created successfully', !!data, data));
+
+            })
+        }
+    } catch (e) {
+        throw new errorHandle(e.message, 400)
+    }
+})
+
+exports.SalesAgentLogin = useAsync(async (req, res) => {
+
+    try {
+        res.header("Access-Control-Allow-Origin", "*");
+        const salesAgent = await ModelSalesAgent.findOne({ email: req.body.email })
+        let resultt;
+        let salesAgentPassword;
+        let name;
+        let body;
+        let subject;
+
+        if (salesAgent) {
+            email= salesAgent.email;
+            resultt = salesAgent.blocked;
+            salesAgentPassword = salesAgent.password;
+            name = salesAgent.fullName;
+            body = "Login detected";
+            subject = "Login Notification";
+
+            //update user if regToken is passed
+            if (!!req.body.token) await salesAgent.update({ token: req.body.token })
+
+        } else {
+            return res.json(utils.JParser("Invalid email or password", false, []));
+        }
+        
+        if (resultt === true) {
+            return res.json(utils.JParser('Sorry your account is blocked', false, []));
+        }
+
+        if (salesAgentPassword) {
+            const originalPassword = await bcrypt.compare(req.body.password, salesAgentPassword);
+
+            if (!originalPassword) {
+                return res.json(utils.JParser('Wrong password', false, []));
+            } else {
+
+                const token = sha1(req.body.email + new Date())
+                const lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
+
+                await ModelSalesAgent.updateOne({ _id: salesAgent._id }, { $set: {token: token, lastLogin: lastLogin } }).then(() => {
+                    EmailNote(email,name,body,subject)
+                    salesAgent.token = token
+                    return res.json(utils.JParser('logged in successfuly', true,  salesAgent ));
+                })
+            }
+        }
+    } catch (e) {
+        throw new errorHandle(e.message, 400)
+    }
+})
 
 
 // exports.userEmailVerify = useAsync(async (req, res) => {
