@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const CoreError = require('../core/core.error');
 const { getAdmin, singleAdmin, editAdmin, allAdmin, deleteAdmin } = require('../controller/controller.admin');
+const { product, singleProduct, allProduct, deleteProduct, editProduct, getAdminProduct } = require('../controller/controller.product');
 
 /**
  * auth routes
@@ -20,7 +21,13 @@ router.put('/edit',adminBodyGuard, editAdmin  );
 router.get('/all',adminBodyGuard, allAdmin  );
 router.delete('/delete',adminBodyGuard, deleteAdmin  );
 
-
+//PRODUCTS
+router.post('/product/create',adminBodyGuard, product );
+router.get('/products', adminBodyGuard, getAdminProduct  );
+router.get('/product/single/:id', adminBodyGuard, singleProduct );
+router.put('/product/edit',adminBodyGuard, editProduct  );
+router.get('/product/all',adminBodyGuard, allProduct  );
+router.delete('/product/delete',adminBodyGuard, deleteProduct  );
 
 /**
  * Export lastly

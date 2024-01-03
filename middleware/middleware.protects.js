@@ -17,7 +17,7 @@ exports.bodyParser = (req, res, next) => {
 exports.adminBodyGuard = useAsync(async (req, res, next) => {
     const sToken =  req.headers['s-token'];
    
-    if ( sToken === 'undefined') throw new errorHandle("Unauthorized Access, Use a valid token and try again", 401);
+    if ( sToken === 'undefined') { res.status(401).json(utils.JParser("Unauthorized Access, Use a valid token and try again", false, [])); }
 
     console.log(sToken)
     //check and decode confirm code validity
@@ -36,7 +36,7 @@ exports.adminBodyGuard = useAsync(async (req, res, next) => {
         const oneHour = 60 * 60 * 1000; /* ms */
 
         //********** Throw error if token has expired (1hr) **************//
-        if (((new Date) - lastLogin) > oneHour) throw new errorHandle("Invalid or expired token, Use a valid token and try again", 401);
+        if (((new Date) - lastLogin) > oneHour){ res.status(401).json(utils.JParser("Invalid or expired token, Use a valid token and try again", false, []));} 
         console.log("isValid")
         req.adminID = isValid._id
         if (isValid.adminType === 1) next();
@@ -48,7 +48,7 @@ exports.adminBodyGuard = useAsync(async (req, res, next) => {
 exports.salesAgentBodyGuard = useAsync(async (req, res, next) => {
     const sToken =  req.headers['s-token'];
    
-    if ( sToken === 'undefined') throw new errorHandle("Unauthorized Access, Use a valid token and try again", 401);
+    if ( sToken === 'undefined') { res.status(401).json(utils.JParser("Unauthorized Access, Use a valid token and try again", false, [])); }
 
     console.log(sToken)
     //check and decode confirm code validity
@@ -67,7 +67,7 @@ exports.salesAgentBodyGuard = useAsync(async (req, res, next) => {
         const oneHour = 60 * 60 * 1000; /* ms */
 
         //********** Throw error if token has expired (1hr) **************//
-        if (((new Date) - lastLogin) > oneHour) throw new errorHandle("Invalid or expired token, Use a valid token and try again", 401);
+        if (((new Date) - lastLogin) > oneHour){ res.status(401).json(utils.JParser("Invalid or expired token, Use a valid token and try again", false, []));} 
         console.log("isValid")
         req.salesAgentID = isValid._id
         if (isValid.blocked === false) next();

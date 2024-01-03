@@ -28,7 +28,7 @@ const productSchema=new mongoose.Schema({
     productImage:{
         type:String,
     },
-    adminID:{type:Number, default:0,},
+    adminID:{type:String},
     creationDateTime:{type:Number, default:()=>Date.now()},	
     updated_at:{type:Number, default:()=>Date.now()}	
 })
