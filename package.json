@@ -31,6 +31,7 @@
     "got": "^12.5.3",
     "ipapi.co": "^0.3.0",
     "iplocation": "^7.2.0",
+    "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.0",
     "mongoose": "^6.8.4",
     "mongoose-paginate-v2": "^1.7.1",

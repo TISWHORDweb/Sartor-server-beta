@@ -1,18 +1,22 @@
+const dotenv = require("dotenv")
+dotenv.config()
 const { useAsync, utils, errorHandle, } = require('../core');
-const ModelSalesAgent = require('../models/model.admin');
-const ModelCertificate = require('../models/model.certificate');
+const ModelSalesAgent = require("../models/model.salesAgent");
 
 
 
-exports.editCertificates = useAsync(async (req, res) => {
+exports.editSalesAgent = useAsync(async (req, res) => {
 
     try {
-        
-        const id = req.body.id;
+
+        const salesAgentID = req.salesAgentID 
         const body = req.body
-        await ModelCertificate.updateOne({ _id: id }, body).then(async () => {
-            const certificate = await ModelCertificate.find({ _id: id });
-            return res.json(utils.JParser('Certificate Update Successfully', !!certificate, certificate));
+
+        if (!salesAgentID)   return res.status(402).json(utils.JParser('provide the salesAgent id', false, []));
+
+        await ModelSalesAgent.updateOne({ _id: salesAgentID }, body).then(async () => {
+            const salesAgent = await ModelSalesAgent.find({ _id: salesAgentID });
+            return res.json(utils.JParser('Sales Agent Update Successfully', !!salesAgent, salesAgent));
         })
 
     } catch (e) {
@@ -20,55 +24,49 @@ exports.editCertificates = useAsync(async (req, res) => {
     }
 })
 
-exports.certificate = useAsync(async (req, res) => {
-
-    try{
-
-        const certificate = await ModelCertificate.create(req.body)
-        return res.json(utils.JParser('Certificate created successfully', !!certificate, certificate));
-
-    } catch (e) {
-        throw new errorHandle(e.message, 400)
-    }
-
-})
-
-exports.singleCertificate = useAsync(async (req, res) => {
+exports.getSalesAgent = useAsync(async (req, res) => {
 
     try {
-        const certificate = await ModelCertificate.findOne({ _id: req.params.id });
-        return res.json(utils.JParser('Certificate fetch successfully', !!certificate, certificate));
+
+        const salesAgentID = req.salesAgentID
+
+        const salesAgent = await ModelSalesAgent.findOne({ _id: salesAgentID });
+        return res.json(utils.JParser('Sales Agent fetch successfully', !!salesAgent, salesAgent));
     } catch (e) {
         throw new errorHandle(e.message, 400)
     }
 })
 
-exports.allCertificate = useAsync(async (req, res) => {
+exports.singleSalesAgent = useAsync(async (req, res) => {
 
     try {
-        const certificate = await ModelCertificate.find();
-        return res.json(utils.JParser('Certificate fetch successfully', !!certificate, certificate));
+
+        const salesAgentID = req.params.id
+        const salesAgent = await ModelSalesAgent.findOne({ _id: salesAgentID });
+        return res.json(utils.JParser('Sales Agent fetch successfully', !!salesAgent, salesAgent));
     } catch (e) {
         throw new errorHandle(e.message, 400)
     }
 })
 
-exports.userCertificate= useAsync(async (req, res) => {
+
+exports.allSalesAgent = useAsync(async (req, res) => {
 
     try {
-        const certificate = await ModelCertificate.find({ personId: req.params.id });
-        return res.json(utils.JParser('User Certificate fetch successfully', !!certificate, certificate));
+        const salesAgent = await ModelSalesAgent.find();
+        return res.json(utils.JParser('All Sales Agent fetch successfully', !!salesAgent, salesAgent));
     } catch (e) {
         throw new errorHandle(e.message, 400)
     }
 })
 
-exports.deleteCertificate = useAsync(async (req, res) => {
+exports.deleteSalesAgent = useAsync(async (req, res) => {
     try {
-        if (!req.body.id) return res.status(402).json({ msg: 'provide the id ' })
+        const salesAgentID = req.body.id
+        if (!salesAgentID)   return res.status(402).json(utils.JParser('provide the salesAgent id', false, []));
 
-        await ModelCertificate.deleteOne({ _id: req.body.id })
-        return res.json(utils.JParser('Certificate deleted successfully', true, []));
+        const salesAgent = await ModelSalesAgent.deleteOne({ _id: salesAgentID })
+        return res.json(utils.JParser('Sales Agent deleted successfully', !!salesAgent, []));
 
     } catch (e) {
         throw new errorHandle(e.message, 400)

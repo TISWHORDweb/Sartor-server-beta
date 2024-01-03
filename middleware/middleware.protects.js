@@ -4,7 +4,8 @@
 
 const {errorHandle, useAsync, utils} = require('../core');
 const CryptoJS = require("crypto-js");
-const ModelPerson = require('../models/model.admin');
+const ModelAdmin = require('../models/model.admin');
+const ModelSalesAgent = require('../models/model.salesAgent');
 
 //body safe state
 exports.bodyParser = (req, res, next) => {
@@ -12,15 +13,15 @@ exports.bodyParser = (req, res, next) => {
     else next();
 }
 
-//userbodyguard
-exports.userBodyGuard = useAsync(async (req, res, next) => {
-    const xToken =  req.headers['x-token'];
+//adminbodyguard
+exports.adminBodyGuard = useAsync(async (req, res, next) => {
+    const sToken =  req.headers['s-token'];
    
-    if ( xToken === 'undefined') throw new errorHandle("Unauthorized Access, Use a valid token and try again", 401);
+    if ( sToken === 'undefined') throw new errorHandle("Unauthorized Access, Use a valid token and try again", 401);
 
-    console.log(xToken)
+    console.log(sToken)
     //check and decode confirm code validity
-    const isValid = await ModelPerson.findOne({token: xToken});
+    const isValid = await ModelAdmin.findOne({token: sToken});
 
     if (isValid) {
         //****** Decrypt Last Login Date and Time *******//
@@ -37,8 +38,39 @@ exports.userBodyGuard = useAsync(async (req, res, next) => {
         //********** Throw error if token has expired (1hr) **************//
         if (((new Date) - lastLogin) > oneHour) throw new errorHandle("Invalid or expired token, Use a valid token and try again", 401);
         console.log("isValid")
-        req.userId = isValid._id
-        if (isValid.whoIs === 0) next();
+        req.adminID = isValid._id
+        if (isValid.adminType === 1) next();
+        else return res.status(400).json(utils.JParser("token is valid but is not authorized for this route, Use a valid token and try again", false, []));
+    } else res.status(400).json(utils.JParser("Invalid token code or token, Use a valid token and try again", false, []));
+})
+
+//salesAgentbodyguard
+exports.salesAgentBodyGuard = useAsync(async (req, res, next) => {
+    const sToken =  req.headers['s-token'];
+   
+    if ( sToken === 'undefined') throw new errorHandle("Unauthorized Access, Use a valid token and try again", 401);
+
+    console.log(sToken)
+    //check and decode confirm code validity
+    const isValid = await ModelSalesAgent.findOne({token: sToken});
+
+    if (isValid) {
+        //****** Decrypt Last Login Date and Time *******//
+        const bytes = CryptoJS.AES.decrypt(isValid.lastLogin, process.env.SECRET_KEY);
+        let lastLogin = bytes.toString(CryptoJS.enc.Utf8);
+
+        //****** Convert to date from string *******//
+        lastLogin = JSON.parse(lastLogin)
+        lastLogin = new Date(lastLogin)
+
+        //****** Calculate an hour ago in milliseconds *******//
+        const oneHour = 60 * 60 * 1000; /* ms */
+
+        //********** Throw error if token has expired (1hr) **************//
+        if (((new Date) - lastLogin) > oneHour) throw new errorHandle("Invalid or expired token, Use a valid token and try again", 401);
+        console.log("isValid")
+        req.salesAgentID = isValid._id
+        if (isValid.blocked === false) next();
         else return res.status(400).json(utils.JParser("token is valid but is not authorized for this route, Use a valid token and try again", false, []));
     } else res.status(400).json(utils.JParser("Invalid token code or token, Use a valid token and try again", false, []));
 })

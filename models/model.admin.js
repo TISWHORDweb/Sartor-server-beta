@@ -36,7 +36,7 @@ const adminSchema=new mongoose.Schema({
     lastLogin:{
         type:String,
     },
-    adminType:{type:Number, default:0,},
+    adminType:{type:Number, default:1,},
     creationDateTime:{type:Number, default:()=>Date.now()},	
     updated_at:{type:Number, default:()=>Date.now()}	
 })
