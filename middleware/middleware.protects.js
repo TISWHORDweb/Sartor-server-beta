@@ -36,7 +36,7 @@ exports.adminBodyGuard = useAsync(async (req, res, next) => {
 
         //********** Throw error if token has expired (1hr) **************//
         if (((new Date) - lastLogin) > oneHour){ res.status(401).json(utils.JParser("Invalid or expired token, Use a valid token and try again", false, []));} 
-        console.log("isValid")
+   
         req.adminID = isValid._id
         if (isValid.adminType === 1) next();
         else return res.status(400).json(utils.JParser("token is valid but is not authorized for this route, Use a valid token and try again", false, []));
@@ -66,7 +66,7 @@ exports.salesAgentBodyGuard = useAsync(async (req, res, next) => {
 
         //********** Throw error if token has expired (1hr) **************//
         if (((new Date) - lastLogin) > oneHour){ res.status(401).json(utils.JParser("Invalid or expired token, Use a valid token and try again", false, []));} 
-        console.log("isValid")
+        
         req.salesAgentID = isValid._id
         if (isValid.blocked === false) next();
         else return res.status(400).json(utils.JParser("token is valid but is not authorized for this route, Use a valid token and try again", false, []));
