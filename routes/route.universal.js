@@ -13,11 +13,11 @@ const { getSalesAgent, singleSalesAgent, editSalesAgent, allSalesAgent, deleteSa
  */
 
 //SALES AGENT
-router.get('/details', salesAgentBodyGuard, getSalesAgent);
-router.get('/single/:id', salesAgentBodyGuard, singleSalesAgent  );
-router.put('/edit',salesAgentBodyGuard, editSalesAgent  );
-router.get('/all',salesAgentBodyGuard, allSalesAgent  );
-router.delete('/delete',salesAgentBodyGuard, deleteSalesAgent  );
+router.get('/sales-agent/details', salesAgentBodyGuard, getSalesAgent);
+router.get('/sales-agent/single/:id', singleSalesAgent  );
+router.put('/sales-agent/edit',salesAgentBodyGuard, editSalesAgent  );
+router.get('/sales-agent/all',salesAgentBodyGuard, allSalesAgent  );
+router.delete('/sales-agent/delete',salesAgentBodyGuard, deleteSalesAgent  );
 
 
 router.all('/*', (req, res) => {

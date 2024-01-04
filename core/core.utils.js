@@ -11,7 +11,7 @@ class CoreError extends Error {
 exports.CoreError = CoreError;
 
 //json parser function
-exports.JParser = (m, s, d) => ({message: m, status: s, data: d});
+exports.JParser = (m, s, d) => ({ message: m, status: s, data: d });
 
 exports.isJson = (str) => {
     try {
@@ -20,4 +20,16 @@ exports.isJson = (str) => {
         return false;
     }
     return true;
+}
+
+exports.generatePassword = (length) => {
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
+    let password = "";
+
+    for (let i = 0; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * charset.length);
+        password += charset[randomIndex];
+    }
+
+    return password;
 }

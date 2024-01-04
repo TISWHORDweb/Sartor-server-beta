@@ -19,7 +19,6 @@ exports.adminBodyGuard = useAsync(async (req, res, next) => {
    
     if ( sToken === 'undefined') { res.status(401).json(utils.JParser("Unauthorized Access, Use a valid token and try again", false, [])); }
 
-    console.log(sToken)
     //check and decode confirm code validity
     const isValid = await ModelAdmin.findOne({token: sToken});
 
@@ -50,7 +49,6 @@ exports.salesAgentBodyGuard = useAsync(async (req, res, next) => {
    
     if ( sToken === 'undefined') { res.status(401).json(utils.JParser("Unauthorized Access, Use a valid token and try again", false, [])); }
 
-    console.log(sToken)
     //check and decode confirm code validity
     const isValid = await ModelSalesAgent.findOne({token: sToken});
 

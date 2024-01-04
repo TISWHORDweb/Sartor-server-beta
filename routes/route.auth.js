@@ -17,7 +17,6 @@ router.post('/admin/register', bodyParser, AdminRegister);
 router.post('/admin/login', bodyParser, AdminLogin);
 
 // SALES AGENT
-router.post('/sales-agent/register', bodyParser, SalesAgentRegister);
 router.post('/sales-agent/login', bodyParser, SalesAgentLogin);
 /**
  * Export lastly

@@ -37,6 +37,7 @@ const salesAgentSchema=new mongoose.Schema({
         type:String,
     },
     agentType:{type:Number, default:0,},
+    adminID:{ type:String},
     creationDateTime:{type:Number, default:()=>Date.now()},	
     updated_at:{type:Number, default:()=>Date.now()}	
 })

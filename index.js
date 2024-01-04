@@ -6,7 +6,7 @@ const path = require('path');
 const bodyParser = require('body-parser')
 const Auth = require('./routes/route.auth')
 const Admin = require('./routes/route.admin')
-const salesAgent = require('./routes/route.sales-agent')
+const Universal = require('./routes/route.universal')
 
 const mongoose = require('mongoose');
 const { errorHandle } = require("./core");
@@ -42,7 +42,7 @@ app.use(bodyParser.json())
 
 app.use("/api/v1/auth", Auth)
 app.use("/api/v1/admin", Admin)
-app.use("/api/v1/sales-agent", salesAgent)
+app.use("/api/v1", Universal)
 app.use('*', () => {
     throw new errorHandle("Resource not found", 404);
 })
