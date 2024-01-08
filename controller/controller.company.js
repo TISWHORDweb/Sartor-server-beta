@@ -48,7 +48,6 @@ exports.company = useAsync(async (req, res) => {
 
 })
 
-
 exports.editCompany = useAsync(async (req, res) => {
 
     try {

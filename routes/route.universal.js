@@ -8,6 +8,7 @@ const router = express.Router();
 const CoreError = require('../core/core.error');
 const { getSalesAgent, singleSalesAgent, editSalesAgent, allSalesAgent, deleteSalesAgent } = require('../controller/controller.salesAgent');
 const { company, getSalesAgentCompany, editCompany, getCompanyByType, singleCompany, allCompany, deleteCompany, companyType, editCompanyType, singleCompanyType, allCompanyType, deleteCompanyType } = require('../controller/controller.company');
+const { deal, editDeal, getSalesAgentDeal, singleDeal, companyDeal, allDeal, deleteDeal } = require('../controller/controller.deal');
 
 /**
  * Export lastly
@@ -36,6 +37,15 @@ router.put('/sales-agent/company/type/edit', salesAgentBodyGuard, editCompanyTyp
 router.get('/sales-agent/company/type/all', salesAgentBodyGuard, allCompanyType );
 router.delete('/sales-agent/company/type/delete', salesAgentBodyGuard, deleteCompanyType );
 router.get('/sales-agent/company/type/:id', salesAgentBodyGuard, singleCompanyType );
+
+// DEALS
+router.post('/sales-agent/deal', salesAgentBodyGuard, deal );
+router.put('/sales-agent/deal/edit', salesAgentBodyGuard, editDeal );
+router.get('/sales-agent/all/deal', salesAgentBodyGuard, getSalesAgentDeal );
+router.get('/sales-agent/deal/company/:id', salesAgentBodyGuard, companyDeal );
+router.delete('/sales-agent/deal/delete', salesAgentBodyGuard, deleteDeal );
+router.get('/sales-agent/deal/all', salesAgentBodyGuard, allDeal );
+router.get('/sales-agent/deal/:id', salesAgentBodyGuard, singleDeal );
 
 
 router.all('/*', (req, res) => {
