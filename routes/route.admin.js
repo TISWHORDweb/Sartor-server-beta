@@ -15,11 +15,11 @@ const { product, singleProduct, allProduct, deleteProduct, editProduct, getAdmin
 
 
 //ADMIN
-router.get('/details', adminBodyGuard, getAdmin);
-router.get('/single/:id', adminBodyGuard, singleAdmin  );
+router.get('/data', adminBodyGuard, getAdmin);
 router.put('/edit',adminBodyGuard, editAdmin  );
 router.get('/all',adminBodyGuard, allAdmin  );
 router.delete('/delete',adminBodyGuard, deleteAdmin  );
+router.get('/single/:id', adminBodyGuard, singleAdmin  );
 
 //SALES AGENT
 router.post('/create/sales-agent',adminBodyGuard, createSalesAgent  );
