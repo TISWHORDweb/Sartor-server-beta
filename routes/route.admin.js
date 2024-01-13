@@ -7,7 +7,7 @@ const express = require('express');
 const router = express.Router();
 const CoreError = require('../core/core.error');
 const { getAdmin, singleAdmin, editAdmin, allAdmin, deleteAdmin, createSalesAgent } = require('../controller/controller.admin');
-const { product, singleProduct, allProduct, deleteProduct, editProduct, getAdminProduct } = require('../controller/controller.product');
+const { product, singleProduct, allProduct, deleteProduct, editProduct, getAdminProduct, productCategory, singleProductCategory, editProductCategory, allProductCategory, deleteProductCategory, getProductsByCategory } = require('../controller/controller.product');
 
 /**
  * auth routes
@@ -27,10 +27,19 @@ router.post('/create/sales-agent',adminBodyGuard, createSalesAgent  );
 //PRODUCTS
 router.post('/product/create',adminBodyGuard, product );
 router.get('/products', adminBodyGuard, getAdminProduct  );
-router.get('/product/single/:id', adminBodyGuard, singleProduct );
+
 router.put('/product/edit',adminBodyGuard, editProduct  );
 router.get('/product/all',adminBodyGuard, allProduct  );
+
 router.delete('/product/delete',adminBodyGuard, deleteProduct  );
+router.get('/product/category/:id',adminBodyGuard, getProductsByCategory  );
+router.get('/product/single/:id', adminBodyGuard, singleProduct );
+//PRODUCT CATEGORY
+router.post('/product/category/create',adminBodyGuard, productCategory );
+router.put('/product/category/edit',adminBodyGuard, editProductCategory  );
+router.delete('/product/category/delete',adminBodyGuard, deleteProductCategory  );
+router.get('/product/category/all',adminBodyGuard, allProductCategory  );
+router.get('/product/category/single/:id', adminBodyGuard, singleProductCategory );
 
 /**
  * Export lastly

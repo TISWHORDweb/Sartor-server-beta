@@ -7,7 +7,7 @@ const productSchema=new mongoose.Schema({
     productID:{
         type:String, 
     },
-    category:{
+    categoryID:{
         type:String, 
     },
     buyingPrice:{
