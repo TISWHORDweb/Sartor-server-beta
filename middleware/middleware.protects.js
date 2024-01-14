@@ -2,7 +2,7 @@
  * Slantapp code and properties {www.slantapp.io}
  */
 
-const {errorHandle, useAsync, utils} = require('../core');
+const { errorHandle, useAsync, utils } = require('../core');
 const CryptoJS = require("crypto-js");
 const ModelAdmin = require('../models/model.admin');
 const ModelSalesAgent = require('../models/model.salesAgent');
@@ -15,12 +15,12 @@ exports.bodyParser = (req, res, next) => {
 
 //adminbodyguard
 exports.adminBodyGuard = useAsync(async (req, res, next) => {
-    const sToken =  req.headers['s-token'];
-   
-    if ( sToken === 'undefined') { res.status(401).json(utils.JParser("Unauthorized Access, Use a valid token and try again", false, [])); }
+    const sToken = req.headers['s-token'];
+
+    if (sToken === 'undefined') { res.status(401).json(utils.JParser("Unauthorized Access, Use a valid token and try again", false, [])); }
 
     //check and decode confirm code validity
-    const isValid = await ModelAdmin.findOne({token: sToken});
+    const isValid = await ModelAdmin.findOne({ token: sToken });
 
     if (isValid) {
         //****** Decrypt Last Login Date and Time *******//
@@ -35,8 +35,8 @@ exports.adminBodyGuard = useAsync(async (req, res, next) => {
         const oneHour = 60 * 60 * 1000; /* ms */
 
         //********** Throw error if token has expired (1hr) **************//
-        if (((new Date) - lastLogin) > oneHour){ res.status(401).json(utils.JParser("Invalid or expired token, Use a valid token and try again", false, []));} 
-   
+        if (((new Date) - lastLogin) > oneHour) { res.status(401).json(utils.JParser("Invalid or expired token, Use a valid token and try again", false, [])); }
+
         req.adminID = isValid._id
         if (isValid.adminType === 1) next();
         else return res.status(400).json(utils.JParser("token is valid but is not authorized for this route, Use a valid token and try again", false, []));
@@ -45,12 +45,13 @@ exports.adminBodyGuard = useAsync(async (req, res, next) => {
 
 //salesAgentbodyguard
 exports.salesAgentBodyGuard = useAsync(async (req, res, next) => {
-    const sToken =  req.headers['s-token'];
-   
-    if ( sToken === 'undefined') { res.status(401).json(utils.JParser("Unauthorized Access, Use a valid token and try again", false, [])); }
+    const sToken = req.headers['s-token'];
+
+    if (sToken === 'undefined') { res.status(401).json(utils.JParser("Unauthorized Access, Use a valid token and try again", false, [])); }
 
     //check and decode confirm code validity
-    const isValid = await ModelSalesAgent.findOne({token: sToken});
+    const isValid = await ModelSalesAgent.findOne({ token: sToken });
+    const isValided = await ModelAdmin.findOne({ token: sToken });
 
     if (isValid) {
         //****** Decrypt Last Login Date and Time *******//
@@ -65,10 +66,28 @@ exports.salesAgentBodyGuard = useAsync(async (req, res, next) => {
         const oneHour = 60 * 60 * 1000; /* ms */
 
         //********** Throw error if token has expired (1hr) **************//
-        if (((new Date) - lastLogin) > oneHour){ res.status(401).json(utils.JParser("Invalid or expired token, Use a valid token and try again", false, []));} 
-        
+        if (((new Date) - lastLogin) > oneHour) { res.status(401).json(utils.JParser("Invalid or expired token, Use a valid token and try again", false, [])); }
+
         req.salesAgentID = isValid._id
         if (isValid.blocked === false) next();
+        else return res.status(400).json(utils.JParser("token is valid but is not authorized for this route, Use a valid token and try again", false, []));
+    }else if (isValided) {
+        //****** Decrypt Last Login Date and Time *******//
+        const bytes = CryptoJS.AES.decrypt(isValided.lastLogin, process.env.SECRET_KEY);
+        let lastLogin = bytes.toString(CryptoJS.enc.Utf8);
+
+        //****** Convert to date from string *******//
+        lastLogin = JSON.parse(lastLogin)
+        lastLogin = new Date(lastLogin)
+
+        //****** Calculate an hour ago in milliseconds *******//
+        const oneHour = 60 * 60 * 1000; /* ms */
+
+        //********** Throw error if token has expired (1hr) **************//
+        if (((new Date) - lastLogin) > oneHour) { res.status(401).json(utils.JParser("Invalid or expired token, Use a valid token and try again", false, [])); }
+
+        req.adminID = isValided._id
+        if (isValided.blocked === false) next();
         else return res.status(400).json(utils.JParser("token is valid but is not authorized for this route, Use a valid token and try again", false, []));
     } else res.status(400).json(utils.JParser("Invalid token code or token, Use a valid token and try again", false, []));
 })

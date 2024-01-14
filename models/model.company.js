@@ -35,6 +35,7 @@ const companySchema=new mongoose.Schema({
         type:String,
     },
     salesAgentID:{type:String},
+    adminID:{type:String},
     checkType:{type:Number, default:0},
     creationDateTime:{type:Number, default:()=>Date.now()},	
     updated_at:{type:Number, default:()=>Date.now()}	

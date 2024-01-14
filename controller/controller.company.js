@@ -9,7 +9,15 @@ exports.company = useAsync(async (req, res) => {
 
     try {
 
-        const salesAgentID = req.salesAgentID
+        let salesAgentID;
+        let adminID;
+
+        if(req.salesAgentID){
+            salesAgentID = req.salesAgentID
+        }else if(req.adminID){
+            adminID = req.adminID
+        }
+       
 
         const CheckcompanyName = await ModelCompany.findOne({ companyName: req.body.companyName })
 
@@ -38,6 +46,7 @@ exports.company = useAsync(async (req, res) => {
         const validator = await schema.validateAsync(req.body);
 
         validator.salesAgentID = salesAgentID
+        validator.adminID = adminID
 
         const company = await ModelCompany.create(validator)
         return res.json(utils.JParser('Company created successfully', !!company, company));

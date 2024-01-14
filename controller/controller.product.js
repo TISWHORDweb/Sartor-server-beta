@@ -9,7 +9,7 @@ const ModelProductCategory = require("../models/model.productCategory");
 exports.product = useAsync(async (req, res) => {
 
     try {
-
+        
         const adminID = req.adminID
 
         //create data if all data available

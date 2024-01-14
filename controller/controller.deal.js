@@ -12,7 +12,14 @@ exports.deal = useAsync(async (req, res) => {
 
     try {
 
-        const salesAgentID = req.salesAgentID
+        let salesAgentID;
+        let adminID;
+
+        if(req.salesAgentID){
+            salesAgentID = req.salesAgentID
+        }else if(req.adminID){
+            adminID = req.adminID
+        }
 
         const validate =  await ModelDeal.findOne({companyID:req.body.companyID, productID:req.body.productID})
 
@@ -33,6 +40,7 @@ exports.deal = useAsync(async (req, res) => {
         const validator = await schema.validateAsync(req.body);
 
         validator.salesAgentID = salesAgentID
+        validator.adminID = adminID
 
         const deal = await ModelDeal.create(validator)
         return res.json(utils.JParser('Deal created successfully', !!deal, deal));

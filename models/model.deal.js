@@ -11,6 +11,7 @@ const dealSchema=new mongoose.Schema({
         type:String, 
     },
     salesAgentID:{type:String},
+    adminID:{type:String},
     creationDateTime:{type:Number, default:()=>Date.now()},	
     updated_at:{type:Number, default:()=>Date.now()}	
 })
