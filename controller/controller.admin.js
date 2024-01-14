@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs')
 const CryptoJS = require("crypto-js")
 const sha1 = require('sha1');
 const ModelSalesAgent = require("../models/model.salesAgent");
+const { EmailNote } = require("../core/core.notify");
 
 
 exports.createSalesAgent = useAsync(async (req, res) => {
@@ -34,10 +35,19 @@ exports.createSalesAgent = useAsync(async (req, res) => {
         } else {
 
             let salesAgent = await new ModelSalesAgent(req.body)
+            const email = req.body.email
+            const body = {
+                email:email,
+                name :'',
+                body: `Congratulastion an account has been created for you as a salesa agent in sator kindly use your login with your email and the following password - ${Password}`,
+                subject :"Account creation"
+            }
 
             await salesAgent.save().then(data => {
 
                 data.password = "********************************"
+
+                EmailNote(body.email,body.name,body.body,body.subject)
 
                 return res.json(utils.JParser('Congratulation Account created successfully', !!data, data));
 
