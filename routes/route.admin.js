@@ -30,15 +30,15 @@ router.get('/products', adminBodyGuard, getAdminProduct  );
 
 router.put('/product/edit',adminBodyGuard, editProduct  );
 router.get('/product/all',adminBodyGuard, allProduct  );
-
 router.delete('/product/delete',adminBodyGuard, deleteProduct  );
 router.get('/product/category/:id',adminBodyGuard, getProductsByCategory  );
 router.get('/product/single/:id', adminBodyGuard, singleProduct );
+
 //PRODUCT CATEGORY
 router.post('/product/category/create',adminBodyGuard, productCategory );
 router.put('/product/category/edit',adminBodyGuard, editProductCategory  );
 router.delete('/product/category/delete',adminBodyGuard, deleteProductCategory  );
-router.get('/product/category/all',adminBodyGuard, allProductCategory  );
+router.get('/product/categorys',adminBodyGuard, allProductCategory  );
 router.get('/product/category/single/:id', adminBodyGuard, singleProductCategory );
 
 /**
