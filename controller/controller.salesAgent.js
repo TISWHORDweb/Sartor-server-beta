@@ -24,6 +24,25 @@ exports.editSalesAgent = useAsync(async (req, res) => {
     }
 })
 
+exports.AdminEditSalesAgent = useAsync(async (req, res) => {
+
+    try {
+
+        const salesAgentID = req.body.id 
+        const body = req.body
+
+        if (!salesAgentID)   return res.status(402).json(utils.JParser('provide the salesAgent id', false, []));
+
+        await ModelSalesAgent.updateOne({ _id: salesAgentID }, body).then(async () => {
+            const salesAgent = await ModelSalesAgent.find({ _id: salesAgentID });
+            return res.json(utils.JParser('Sales Agent Update Successfully', !!salesAgent, salesAgent));
+        })
+
+    } catch (e) {
+        throw new errorHandle(e.message, 400)
+    }
+})
+
 exports.getSalesAgent = useAsync(async (req, res) => {
 
     try {

@@ -8,6 +8,7 @@ const router = express.Router();
 const CoreError = require('../core/core.error');
 const { getAdmin, singleAdmin, editAdmin, allAdmin, deleteAdmin, createSalesAgent } = require('../controller/controller.admin');
 const { product, singleProduct, allProduct, deleteProduct, editProduct, getAdminProduct, productCategory, singleProductCategory, editProductCategory, allProductCategory, deleteProductCategory, getProductsByCategory } = require('../controller/controller.product');
+const { AdminEditSalesAgent } = require('../controller/controller.salesAgent');
 
 /**
  * auth routes
@@ -23,6 +24,7 @@ router.get('/single/:id', adminBodyGuard, singleAdmin  );
 
 //SALES AGENT
 router.post('/create/sales-agent',adminBodyGuard, createSalesAgent  );
+router.put('/sales-agent/edit',adminBodyGuard, AdminEditSalesAgent  );
 
 //PRODUCTS
 router.post('/product/create',adminBodyGuard, product );
