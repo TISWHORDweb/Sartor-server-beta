@@ -89,7 +89,7 @@ exports.singleDeal = useAsync(async (req, res) => {
         const dealID = req.params.id
         if (!dealID) return res.status(402).json(utils.JParser('provide the Deal id', false, []));
 
-        const deal = await ModelDeal.findOne({ dealID: dealID });
+        const deal = await ModelDeal.findOne({ _id: dealID });
 
         if (deal) {
             const product = await ModelDeal.findOne({ productID: deal.productID });
