@@ -15,6 +15,7 @@ const taskSchema=new mongoose.Schema({
     adminID:{type:String},
     taskFor:{type:Number, default:0}, // single agent = 1 | all agent =  2
     quantity:{type:Number, default:0},
+    percent:{type:Number, default:0}, 
     createBy:{type:Number, default:0}, // admin = 2 | agent =  1
     creationDateTime:{type:Number, default:()=>Date.now()},	
     updated_at:{type:Number, default:()=>Date.now()}	
