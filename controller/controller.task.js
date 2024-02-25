@@ -1,10 +1,8 @@
 const dotenv = require("dotenv")
 dotenv.config()
 const { useAsync, utils, errorHandle, } = require('../core');
-const ModelProduct = require("../models/model.product");
 const Joi = require("joi");
 const ModelTask = require("../models/model.task");
-
 
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -122,7 +120,11 @@ exports.getAdminTaskByStatus = useAsync(async (req, res) => {
 
         if (status) {
             const tasks = await ModelTask.find({ status: status });
-            return res.json(utils.JParser('TaskS fetch successfully', !!tasks, tasks));
+            if (tasks) {
+                return res.json(utils.JParser('TaskS fetch successfully', !!tasks, tasks));
+            } else {
+                return res.status(402).json(utils.JParser('Invalid status', !!tasks, []));
+            }
         } else {
             return res.status(402).json(utils.JParser('Task not found', !!tasks, []));
         }
@@ -179,7 +181,7 @@ exports.editAgentTasks = useAsync(async (req, res) => {
 
         const option = { _id: taskID, salesAgentID: salesAgentID, createBy: 1 }
         const check = await ModelTask.findOne(option)
-        
+
         if (check) {
             await ModelTask.updateOne(option, body).then(async () => {
                 const tasks = await ModelTask.find(option);
@@ -260,7 +262,12 @@ exports.getAgentTaskByStatus = useAsync(async (req, res) => {
 
         if (status) {
             const tasks = await ModelTask.find({ status: status, salesAgentID: salesAgentID });
-            return res.json(utils.JParser('TaskS fetch successfully', !!tasks, tasks));
+
+            if (tasks) {
+                return res.json(utils.JParser('TaskS fetch successfully', !!tasks, tasks));
+            } else {
+                return res.status(402).json(utils.JParser('Invalid status', !!tasks, []));
+            }
         } else {
             return res.status(402).json(utils.JParser('Task not found', !!tasks, []));
         }

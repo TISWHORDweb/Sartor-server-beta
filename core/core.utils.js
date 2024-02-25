@@ -33,3 +33,7 @@ exports.generatePassword = (length) => {
 
     return password;
 }
+
+exports.generatePercent = (x, y) => {
+    return (x / y) * 100;
+}
