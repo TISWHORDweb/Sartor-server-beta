@@ -53,7 +53,7 @@ router.post('/sales-agent/create/task', salesAgentBodyGuard, AgentCreateTask );
 router.put('/sales-agent/task/edit', salesAgentBodyGuard, editAgentTasks );
 router.get('/sales-agent/task', salesAgentBodyGuard, getAgentTasks );
 router.delete('/sales-agent/task/delete', salesAgentBodyGuard, deleteAgentTasks );
-router.get('/sales-agent/task/:id', salesAgentBodyGuard, deleteAgentTasks );
+router.get('/sales-agent/task/:id', salesAgentBodyGuard, singleAgentTask );
 router.get('/sales-agent/task/status/:status', salesAgentBodyGuard, getAgentTaskByStatus );
 
 router.all('/*', (req, res) => {

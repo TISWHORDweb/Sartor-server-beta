@@ -117,9 +117,10 @@ exports.getAdminTaskByStatus = useAsync(async (req, res) => {
     try {
 
         const status = req.params.status
+        const adminID = req.adminID
 
         if (status) {
-            const tasks = await ModelTask.find({ status: status });
+            const tasks = await ModelTask.find({ status: status, adminID: adminID });
             if (tasks) {
                 return res.json(utils.JParser('TaskS fetch successfully', !!tasks, tasks));
             } else {
