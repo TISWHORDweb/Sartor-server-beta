@@ -174,6 +174,7 @@ exports.editAgentTasks = useAsync(async (req, res) => {
 
     try {
         const salesAgentID = req.salesAgentID
+        
         const taskID = req.body.id
         const body = req.body
 
@@ -191,8 +192,6 @@ exports.editAgentTasks = useAsync(async (req, res) => {
             return res.json(utils.JParser("Tasks not found or you are not authorized", !!tasks, []));
         }
 
-
-
     } catch (e) {
         throw new errorHandle(e.message, 400)
     }
@@ -208,7 +207,7 @@ exports.getAgentTasks = useAsync(async (req, res) => {
         const ForAllAgent = await ModelTask.find({ taskFor: 2 });
         const AssignedToSelf = await ModelTask.find({ createBy: 1, salesAgentID: salesAgentID });
 
-        return res.json(utils.JParser('Task fetch successfully', !!ByAdmin, { ByAdmin, ForAllAgent, AssignedToSelf }));
+        return res.json(utils.JParser('Task fetch successfully', !!ByAdmin || !!ForAllAgent || !!AssignedToSelf, { ByAdmin, ForAllAgent, AssignedToSelf }));
     } catch (e) {
         throw new errorHandle(e.message, 400)
     }
@@ -218,10 +217,11 @@ exports.singleAgentTask = useAsync(async (req, res) => {
 
     try {
         const taskID = req.params.id
-        const salesAgentID = req.salesAgentID
         if (!taskID) return res.status(402).json(utils.JParser('provide the tasks id', false, []));
 
-        const tasks = await ModelTask.findOne({ _id: taskID, salesAgentID: salesAgentID });
+        const tasks = await ModelTask.findOne({ _id: taskID});
+
+        if (!tasks) return res.status(402).json(utils.JParser('No tasks have that kind of id ', false, []));
 
         res.json(utils.JParser('Task fetch successfully', !!tasks, tasks));
 
