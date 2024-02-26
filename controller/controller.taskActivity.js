@@ -4,6 +4,7 @@ const { useAsync, utils, errorHandle, } = require('../core');
 const Joi = require("joi");
 const ModelTask = require("../models/model.task");
 const ModelTaskAtivity = require("../models/model.tasksActivity");
+const { generatePercent } = require("../core/core.utils");
 
 
 exports.CreateActivityTask = useAsync(async (req, res) => {
@@ -38,11 +39,11 @@ exports.CreateActivityTask = useAsync(async (req, res) => {
 
         } else if (check && task) {
             let status;
-            const quantity = +check.quantity + +1
+            const quantity = check.quantity + 1
             const body = { quantity: quantity }
 
             await ModelTaskAtivity.updateOne(option, body).then(async () => {
-                const Activity = await ModelTaskAtivity.find(option);
+                const Activity = await ModelTaskAtivity.findOne(option);
 
                 const percent = await generatePercent(Activity.quantity, task.quantity)
 
@@ -79,6 +80,18 @@ exports.singleTaskActivity = useAsync(async (req, res) => {
         const tasks = await ModelTaskAtivity.findOne({ _id: taskActivityID });
 
         res.json(utils.JParser('Task Activity fetch successfully', !!tasks, tasks));
+
+    } catch (e) {
+        throw new errorHandle(e.message, 400)
+    }
+})
+
+exports.allTaskActivity = useAsync(async (req, res) => {
+
+    try {
+        const tasks = await ModelTaskAtivity.find();
+
+        res.json(utils.JParser('All Task Activity fetch successfully', !!tasks, tasks));
 
     } catch (e) {
         throw new errorHandle(e.message, 400)

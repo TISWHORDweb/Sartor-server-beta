@@ -13,6 +13,6 @@ const taskActivitySchema=new mongoose.Schema({
 })
 
 
-const ModelTaskAtivity=mongoose.model("model-task", taskActivitySchema)
+const ModelTaskAtivity=mongoose.model("model-task-activity", taskActivitySchema)
 
 module.exports=ModelTaskAtivity

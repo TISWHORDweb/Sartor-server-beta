@@ -10,6 +10,7 @@ const { getSalesAgent, singleSalesAgent, editSalesAgent, allSalesAgent, deleteSa
 const { company, getSalesAgentCompany, editCompany, getCompanyByType, singleCompany, allCompany, deleteCompany, companyType, editCompanyType, singleCompanyType, allCompanyType, deleteCompanyType } = require('../controller/controller.company');
 const { deal, editDeal, getSalesAgentDeal, singleDeal, companyDeal, allDeal, deleteDeal } = require('../controller/controller.deal');
 const { AgentCreateTask, editAgentTasks, getAgentTasks, singleAgentTask, deleteAgentTasks, getAgentTaskByStatus } = require('../controller/controller.task');
+const { CreateActivityTask, allTaskActivity, singleTaskActivity, deleteTaskActivity } = require('../controller/controller.taskActivity');
 
 /**
  * Export lastly
@@ -55,6 +56,13 @@ router.get('/sales-agent/task', salesAgentBodyGuard, getAgentTasks );
 router.delete('/sales-agent/task/delete', salesAgentBodyGuard, deleteAgentTasks );
 router.get('/sales-agent/task/:id', salesAgentBodyGuard, singleAgentTask );
 router.get('/sales-agent/task/status/:status', salesAgentBodyGuard, getAgentTaskByStatus );
+
+//TASKS ACTIVITY
+router.post('/sales-agent/task/activity', CreateActivityTask );
+router.get('/sales-agent/task/activity/all', allTaskActivity );
+router.get('/sales-agent/task/activity/:id', singleTaskActivity );
+router.delete('/sales-agent/task/activity/delete', salesAgentBodyGuard, deleteTaskActivity );
+
 
 router.all('/*', (req, res) => {
     throw new CoreError(`route not found ${req.originalUrl} using ${req.method} method`, 404);
