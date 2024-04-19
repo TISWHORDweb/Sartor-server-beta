@@ -7,43 +7,40 @@ const Joi = require("joi");
 const { modelName } = require("../models/model.company");
 const ModelProduct = require("../models/model.product");
 const ModelCompany = require("../models/model.company");
+const ModelDealProduct = require("../models/model.dealProduct");
 
 exports.deal = useAsync(async (req, res) => {
 
     try {
 
-        let salesAgentID;
-        let adminID;
+        // let salesAgentID;
+        // let adminID;
 
-        if(req.salesAgentID){
-            salesAgentID = req.salesAgentID
-        }else if(req.adminID){
-            adminID = req.adminID
-        }
+        // if (req.salesAgentID) {
+        //     salesAgentID = req.salesAgentID
+        // } else if (req.adminID) {
+        //     adminID = req.adminID
+        // }
 
-        const validate =  await ModelDeal.findOne({companyID:req.body.companyID, productID:req.body.productID})
+        // //create data if all data available
+        // req.body.deal.salesAgentID = salesAgentID
+        // req.body.deal.adminID = adminID
 
-        if(validate){
-            return res.status(402).json(utils.JParser('Theres a created deal for this company and product already', false, []));
-        }
-        //create data if all data available
-        const schema = Joi.object({
-            productID: Joi.string().min(1).required(),
-            companyID: Joi.string().min(1).required(),
-            dealName: Joi.optional(),
-        })
+        const dealData = req.body.deal
+        const productData = req.body.product
 
-        //capture data
-        const { dealName, companyID, productID } = req.body;
+        const newDeal = new ModelDeal(dealData)
+        const savedDeal = await newDeal.save();
+        const dealId = savedDeal._id
 
-        //validate data
-        const validator = await schema.validateAsync(req.body);
+        const productWithDealId = productData.map((product) => ({
+            ...product,
+            dealID: dealId
+        }));
 
-        validator.salesAgentID = salesAgentID
-        validator.adminID = adminID
+        const product = await ModelDealProduct.insertMany(productWithDealId)
 
-        const deal = await ModelDeal.create(validator)
-        return res.json(utils.JParser('Deal created successfully', !!deal, deal));
+        return res.json(utils.JParser('Deal created successfully', !!product, { newDeal, product }));
 
     } catch (e) {
         throw new errorHandle(e.message, 400)
@@ -76,8 +73,17 @@ exports.getSalesAgentDeal = useAsync(async (req, res) => {
 
         const salesAgentID = req.salesAgentID
 
-        const deal = await ModelDeal.find({ salesAgentID: salesAgentID });
-        return res.json(utils.JParser('Deal fetch successfully', !!deal, deal));
+        const salesAgent = await ModelSalesAgent.findOne(salesAgentID)
+
+        const deals = await ModelDeal.find({ salesAgentID: salesAgentID })
+        const dealPromises = deals.map(async (deal) => {
+            const products = await ModelDealProduct.find({ dealID: deal._id });
+            return { ...deal.toJSON(), products };
+        });
+
+        const Deal = await Promise.all(dealPromises);
+
+        return res.json(utils.JParser('Deal fetch successfully', !!salesAgent, { salesAgent, Deal }));
     } catch (e) {
         throw new errorHandle(e.message, 400)
     }
@@ -92,10 +98,11 @@ exports.singleDeal = useAsync(async (req, res) => {
         const deal = await ModelDeal.findOne({ _id: dealID });
 
         if (deal) {
-            const product = await ModelDeal.findOne({ productID: deal.productID });
-            const company = await ModelDeal.findOne({ companyID: deal.companyID });
+            const products = await ModelDealProduct.find({ dealID: deal._id })
+            const salesAgent = await ModelSalesAgent.findOne({ _id: deal.salesAgentID })
+            const company = await ModelCompany.findOne({ _id: deal.companyID });
 
-            res.json(utils.JParser('Deal fetch successfully', !!deal, { deal, company, product }));
+            res.json(utils.JParser('Deal fetch successfully', !!deal, { deal, company, salesAgent, products }));
         }
 
 
@@ -110,24 +117,23 @@ exports.companyDeal = useAsync(async (req, res) => {
         const companyID = req.params.id;
 
         if (!companyID) return res.status(402).json(utils.JParser('provide the Company id', false, []));
-        
-        const deal = await ModelDeal.find({ companyID: companyID });
-        
-        if (deal) {
-            const company = await ModelCompany.findOne({ _id: companyID })
-            const eachproducts = await Promise.all(deal.map(async (dealItem) => {
-                let each = await ModelProduct.findOne({ _id: dealItem?.productID }).lean();
-                return {
-                    each
-                };
-            }));
 
-            const products = eachproducts.map(item => item.each)
-        
-            res.json(utils.JParser('Deal fetch successfully', true, {company,products}));
+        const deals = await ModelDeal.find({ companyID: companyID });
+
+        if (deals) {
+            const company = await ModelCompany.findOne({ _id: companyID })
+
+            const dealPromises = deals.map(async (deal) => {
+                const products = await ModelDealProduct.find({ dealID: deal._id });
+                return { ...deal.toJSON(), products };
+            });
+    
+            const Deal = await Promise.all(dealPromises);
+
+            res.json(utils.JParser('Deal fetch successfully', true, { company, Deal }));
         } else {
             res.json(utils.JParser('Deal not found', false, null));
-        }        
+        }
 
     } catch (e) {
         throw new errorHandle(e.message, 400)
@@ -137,8 +143,21 @@ exports.companyDeal = useAsync(async (req, res) => {
 exports.allDeal = useAsync(async (req, res) => {
 
     try {
-        const deal = await ModelDeal.find();
-        return res.json(utils.JParser('All Deals fetch successfully', !!deal, deal));
+        const deals = await ModelDeal.find();
+
+        // const Deal = await promises.all(deals.map(async (deal) => {
+        //     const products = await ModelDealProduct.find({ dealID: deal._id })
+        //     return { ...deal.toJSON(), products }
+        // }))
+
+        const dealPromises = deals.map(async (deal) => {
+            const products = await ModelDealProduct.find({ dealID: deal._id });
+            return { ...deal.toJSON(), products };
+        });
+
+        const Deal = await Promise.all(dealPromises);
+
+        return res.json(utils.JParser('All Deals fetch successfully', !!Deal, Deal));
     } catch (e) {
         throw new errorHandle(e.message, 400)
     }

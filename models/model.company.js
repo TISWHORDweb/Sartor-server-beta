@@ -34,6 +34,15 @@ const companySchema=new mongoose.Schema({
     location:{
         type:String,
     },
+    latitude:{
+        type:String,
+    },
+    longtitude:{
+        type:String,
+    },
+    googleUrl:{
+        type:String,
+    },
     salesAgentID:{type:String},
     adminID:{type:String},
     checkType:{type:Number, default:0},
