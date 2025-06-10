@@ -6,18 +6,17 @@ const { generatePassword } = require("../core/core.utils");
 const bcrypt = require('bcryptjs')
 const CryptoJS = require("crypto-js")
 const sha1 = require('sha1');
-const ModelSalesAgent = require("../models/model.salesAgent");
+const ModelEmployee = require("../models/model.employee");
 const { EmailNote } = require("../core/core.notify");
 
 
-exports.createSalesAgent = useAsync(async (req, res) => {
+exports.createEmployee= useAsync(async (req, res) => {
 
     try {
 
-        const adminID = req.adminID
+        const adminID = req.userId
 
         const Password = await generatePassword(9);
-        console.log(Password)
 
         if (Password) {
             req.body.password = await bcrypt.hash(Password, 13)
@@ -29,12 +28,12 @@ exports.createSalesAgent = useAsync(async (req, res) => {
         req.body.token = sha1(req.body.email + new Date())
         req.body.lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
 
-        const validates = await ModelSalesAgent.findOne({ email: req.body.email })
+        const validates = await ModelEmployee.findOne({ email: req.body.email })
         if (validates) {
             return res.json(utils.JParser('There is another Sales agent with this email', false, []));
         } else {
 
-            let salesAgent = await new ModelSalesAgent(req.body)
+            let employee = await new ModelEmployee(req.body)
             const email = req.body.email
             const body = {
                 email:email,
@@ -43,7 +42,7 @@ exports.createSalesAgent = useAsync(async (req, res) => {
                 subject :"Account creation"
             }
 
-            await salesAgent.save().then(data => {
+            await employee.save().then(data => {
 
                 data.password = "********************************"
 
@@ -63,7 +62,7 @@ exports.editAdmin = useAsync(async (req, res) => {
 
     try {
 
-        const adminID = req.adminID 
+        const adminID = req.userId 
         const body = req.body
 
         if (!adminID)   return res.status(402).json(utils.JParser('provide the admin id', false, []));
@@ -82,7 +81,7 @@ exports.getAdmin = useAsync(async (req, res) => {
 
     try {
 
-        const adminID = req.adminID
+        const adminID = req.userId
 
         const admin = await ModelAdmin.findOne({ _id: adminID });
         return res.json(utils.JParser('Admin fetch successfully', !!admin, admin));

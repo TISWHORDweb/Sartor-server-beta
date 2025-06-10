@@ -6,10 +6,10 @@ const { adminBodyGuard} = require('../middleware/middleware.protects');
 const express = require('express');
 const router = express.Router();
 const CoreError = require('../core/core.error');
-const { getAdmin, singleAdmin, editAdmin, allAdmin, deleteAdmin, createSalesAgent } = require('../controller/controller.admin');
+const { getAdmin, singleAdmin, editAdmin, allAdmin, deleteAdmin, createEmployee } = require('../controller/controller.admin');
 const { product, singleProduct, allProduct, deleteProduct, editProduct, getAdminProduct, productCategory, singleProductCategory, editProductCategory, allProductCategory, deleteProductCategory, getProductsByCategory } = require('../controller/controller.product');
-const { AdminEditSalesAgent } = require('../controller/controller.salesAgent');
-const { AdminCreateTask, editAdminTasks, getAdminTasks, singleAdminTask, deleteAdminTasks, getAdminTaskByStatus } = require('../controller/controller.task');
+const { editEmployee, singleEmployee, allEmployee, deleteEmployee } = require('../controller/controller.employee');
+const { deleteAdminTasks, CreateTask, allTasks } = require('../controller/controller.task');
 
 /**
  * auth routes
@@ -24,8 +24,11 @@ router.delete('/delete',adminBodyGuard, deleteAdmin  );
 router.get('/single/:id', adminBodyGuard, singleAdmin  );
 
 //SALES AGENT
-router.post('/create/sales-agent',adminBodyGuard, createSalesAgent  );
-router.put('/sales-agent/edit',adminBodyGuard, AdminEditSalesAgent  );
+router.post('/create/employee',adminBodyGuard, createEmployee  );
+router.put('/employee/edit',adminBodyGuard, editEmployee  );
+router.get('/employee/single/:id', adminBodyGuard, singleEmployee  );
+router.get('/employee/all', adminBodyGuard, allEmployee  );
+router.delete('/employee/delete',adminBodyGuard, deleteEmployee  );
 
 //PRODUCTS
 router.post('/product/create',adminBodyGuard, product );
@@ -45,12 +48,9 @@ router.get('/product/categorys',adminBodyGuard, allProductCategory  );
 router.get('/product/category/single/:id', adminBodyGuard, singleProductCategory );
 
 ////TASKS
-router.post('/create/task', adminBodyGuard, AdminCreateTask );
-router.put('/task/edit', adminBodyGuard, editAdminTasks );
-router.get('/tasks', adminBodyGuard, getAdminTasks );
+router.post('/create/task', adminBodyGuard, CreateTask );
 router.delete('/task/delete', adminBodyGuard, deleteAdminTasks );
-router.get('/task/:id', adminBodyGuard, singleAdminTask );
-router.get('/task/status/:status', adminBodyGuard, getAdminTaskByStatus );
+router.get('/tasks', adminBodyGuard, allTasks );
 
 
 /**

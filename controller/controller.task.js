@@ -3,34 +3,34 @@ dotenv.config()
 const { useAsync, utils, errorHandle, } = require('../core');
 const Joi = require("joi");
 const ModelTask = require("../models/model.task");
+const ModelTaskComment = require("../models/model.taskComment");
 
 
 //////////////////////////////////////////////////////////////////////////////////////
 ////ADMIN TASKS ROUTES
 //////////////////////////////////////////////////////////////////////////////////////
 
-exports.AdminCreateTask = useAsync(async (req, res) => {
+exports.CreateTask = useAsync(async (req, res) => {
 
     try {
 
-        const adminID = req.adminID
+        const adminId = req.userId
 
         //create data if all data available
         const schema = Joi.object({
-            taskName: Joi.string().min(1).required(),
-            task: Joi.string().min(1).required(),
-            taskFor: Joi.number().min(1).required(),
-            quantity: Joi.number().min(1).required(),
+            title: Joi.string().min(3).required(),
+            description: Joi.string().min(3).required(),
+            employee: Joi.string().required(),
+            dueDate: Joi.string().min(1).required(),
         })
 
         //capture data
-        const { taskName, task, taskFor, quantity } = req.body;
+        const { taskName, task, dueDate, employee } = req.body;
 
         //validate data
         const validator = await schema.validateAsync(req.body);
 
-        validator.adminID = adminID
-        validator.createBy = 2
+        validator.admin = adminId
 
         const tasks = await ModelTask.create(validator)
         return res.json(utils.JParser('Tasks created successfully', !!tasks, tasks));
@@ -41,7 +41,7 @@ exports.AdminCreateTask = useAsync(async (req, res) => {
 
 })
 
-exports.editAdminTasks = useAsync(async (req, res) => {
+exports.editTask = useAsync(async (req, res) => {
 
     try {
 
@@ -50,7 +50,7 @@ exports.editAdminTasks = useAsync(async (req, res) => {
 
         if (!taskID) return res.status(402).json(utils.JParser('provide the tasks id', false, []));
 
-        await ModelTask.updateOne({ _id: taskID, createBy: 2 }, body).then(async () => {
+        await ModelTask.updateOne({ _id: taskID }, body).then(async () => {
             const tasks = await ModelTask.find({ _id: taskID });
             return res.json(utils.JParser('Task update Successfully', !!tasks, tasks));
         })
@@ -60,26 +60,119 @@ exports.editAdminTasks = useAsync(async (req, res) => {
     }
 })
 
-exports.getAdminTasks = useAsync(async (req, res) => {
+exports.changeTaskStatus = useAsync(async (req, res) => {
 
     try {
 
-        const adminID = req.adminID
+        const taskID = req.params.id
+        const status = req.body.status
 
-        const tasks = await ModelTask.find({ adminID: adminID });
-        return res.json(utils.JParser('Task fetch successfully', !!tasks, tasks));
+        if (!taskID) return res.status(402).json(utils.JParser('provide the tasks id', false, []));
+
+        await ModelTask.updateOne({ _id: taskID }, {status}).then(async () => {
+            const tasks = await ModelTask.find({ _id: taskID });
+            return res.json(utils.JParser('Status changed update Successfully', !!tasks, tasks));
+        })
+
     } catch (e) {
         throw new errorHandle(e.message, 400)
     }
 })
 
-exports.singleAdminTask = useAsync(async (req, res) => {
+exports.getTasks = useAsync(async (req, res) => {
+
+    try {
+
+        const userId = req.userId
+
+        const tasks = await ModelTask.find({ employee: userId })
+            .populate('admin')
+            .populate('employee');
+
+
+        // Calculate status counts
+        const statusCounts = {
+            "Pending": 0,
+            "Due": 0,
+            "Assigned": 0,
+            "Unconfirmed": 0,
+            "Completed": 0,
+            "Received": 0,
+            "Overdue": 0,
+            "To-Do": 0,
+            "Confirmed": 0
+        };
+
+        tasks.forEach(task => {
+            if (task.status && statusCounts.hasOwnProperty(task.status)) {
+                statusCounts[task.status]++;
+            }
+        });
+
+        // Prepare response with both tasks and analytics
+        const response = {
+            tasks: tasks,
+            analytics: {
+                statusCounts: statusCounts,
+                totalTasks: tasks.length
+            }
+        };
+
+        return res.json(utils.JParser('Task fetch successfully', true, response));
+    } catch (e) {
+        throw new errorHandle(e.message, 400)
+    }
+})
+
+exports.allTasks = useAsync(async (req, res) => {
+    try {
+        // Get all tasks
+        const tasks = await ModelTask.find()
+            .populate('admin')
+            .populate('employee');
+
+        // Calculate status counts
+        const statusCounts = {
+            "Pending": 0,
+            "Due": 0,
+            "Assigned": 0,
+            "Unconfirmed": 0,
+            "Completed": 0,
+            "Received": 0,
+            "Overdue": 0,
+            "To-Do": 0,
+            "Confirmed": 0
+        };
+
+        tasks.forEach(task => {
+            if (task.status && statusCounts.hasOwnProperty(task.status)) {
+                statusCounts[task.status]++;
+            }
+        });
+
+        // Prepare response with both tasks and analytics
+        const response = {
+            tasks: tasks,
+            analytics: {
+                statusCounts: statusCounts,
+                totalTasks: tasks.length
+            }
+        };
+
+        return res.json(utils.JParser('Tasks fetched successfully', true, response));
+    } catch (e) {
+        throw new errorHandle(e.message, 400);
+    }
+});
+
+exports.singleTask = useAsync(async (req, res) => {
 
     try {
         const taskID = req.params.id
         if (!taskID) return res.status(402).json(utils.JParser('provide the tasks id', false, []));
 
-        const tasks = await ModelTask.findOne({ _id: taskID });
+        const tasks = await ModelTask.findOne({ _id: taskID })
+            .populate('admin').populate('employee')
 
         res.json(utils.JParser('Task fetch successfully', !!tasks, tasks));
 
@@ -88,15 +181,6 @@ exports.singleAdminTask = useAsync(async (req, res) => {
     }
 })
 
-exports.allAdminTasks = useAsync(async (req, res) => {
-
-    try {
-        const tasks = await ModelTask.find();
-        return res.json(utils.JParser('All Products fetch successfully', !!tasks, tasks));
-    } catch (e) {
-        throw new errorHandle(e.message, 400)
-    }
-})
 
 exports.deleteAdminTasks = useAsync(async (req, res) => {
     try {
@@ -112,7 +196,7 @@ exports.deleteAdminTasks = useAsync(async (req, res) => {
 
 });
 
-exports.getAdminTaskByStatus = useAsync(async (req, res) => {
+exports.getTaskByStatus = useAsync(async (req, res) => {
 
     try {
 
@@ -120,7 +204,7 @@ exports.getAdminTaskByStatus = useAsync(async (req, res) => {
         const adminID = req.adminID
 
         if (status) {
-            const tasks = await ModelTask.find({ status: status, adminID: adminID });
+            const tasks = await ModelTask.find({ status: status });
             if (tasks) {
                 return res.json(utils.JParser('TaskS fetch successfully', !!tasks, tasks));
             } else {
@@ -136,34 +220,32 @@ exports.getAdminTaskByStatus = useAsync(async (req, res) => {
 })
 
 //////////////////////////////////////////////////////////////////////////////////////
-////AGENT TASKS ROUTES
+//// TASKS COMMENT  
 //////////////////////////////////////////////////////////////////////////////////////
-
-exports.AgentCreateTask = useAsync(async (req, res) => {
+exports.taskComment = useAsync(async (req, res) => {
 
     try {
-
-        const salesAgentID = req.salesAgentID
+        const userId = req.userId
+        const who = req.who
 
         //create data if all data available
         const schema = Joi.object({
-            taskName: Joi.string().min(1).required(),
-            task: Joi.string().min(1).required(),
-            quantity: Joi.number().min(1).required(),
+            comment: Joi.string().min(2).required(),
+            taskId: Joi.string().required()
         })
 
         //capture data
-        const { taskName, task, taskFor, quantity } = req.body;
+        const { comment, taskId } = req.body;
 
         //validate data
         const validator = await schema.validateAsync(req.body);
+        validator.admin = who === 2 ? userId : null
+        validator.employee = who === 1 ? userId : null
+        validator.createBy = who
+        validator.task = taskId
 
-        validator.salesAgentID = salesAgentID
-        validator.createBy = 1
-        validator.taskFor = 1
-
-        const tasks = await ModelTask.create(validator)
-        return res.json(utils.JParser('Tasks created successfully', !!tasks, tasks));
+        const tasks = await ModelTaskComment.create(validator)
+        return res.json(utils.JParser('Task comment created successfully', !!tasks, tasks));
 
     } catch (e) {
         throw new errorHandle(e.message, 400)
@@ -171,107 +253,35 @@ exports.AgentCreateTask = useAsync(async (req, res) => {
 
 })
 
-exports.editAgentTasks = useAsync(async (req, res) => {
+exports.singleTaskComment = useAsync(async (req, res) => {
 
     try {
-        const salesAgentID = req.salesAgentID
-        
-        const taskID = req.body.id
-        const body = req.body
+        const comment = req.params.id
+        if (!comment) return res.status(402).json(utils.JParser('provide the comment id', false, []));
 
-        if (!taskID) return res.status(402).json(utils.JParser('provide the tasks id', false, []));
+        const tasks = await ModelTaskComment.findOne({ _id: comment })
+            .populate('admin').populate('employee').populate('task')
 
-        const option = { _id: taskID, salesAgentID: salesAgentID, createBy: 1 }
-        const check = await ModelTask.findOne(option)
-
-        if (check) {
-            await ModelTask.updateOne(option, body).then(async () => {
-                const tasks = await ModelTask.find(option);
-                return res.json(utils.JParser('Task update Successfully', !!tasks, tasks));
-            })
-        } else {
-            return res.json(utils.JParser("Tasks not found or you are not authorized", !!tasks, []));
-        }
+        res.json(utils.JParser('Comment fetch successfully', !!tasks, tasks));
 
     } catch (e) {
         throw new errorHandle(e.message, 400)
     }
 })
 
-exports.getAgentTasks = useAsync(async (req, res) => {
-
-    try {
-
-        const salesAgentID = req.salesAgentID
-
-        const ByAdmin = await ModelTask.find({ salesAgentID: salesAgentID, createBy: 2 });
-        const ForAllAgent = await ModelTask.find({ taskFor: 2 });
-        const AssignedToSelf = await ModelTask.find({ createBy: 1, salesAgentID: salesAgentID });
-
-        return res.json(utils.JParser('Task fetch successfully', !!ByAdmin || !!ForAllAgent || !!AssignedToSelf, { ByAdmin, ForAllAgent, AssignedToSelf }));
-    } catch (e) {
-        throw new errorHandle(e.message, 400)
-    }
-})
-
-exports.singleAgentTask = useAsync(async (req, res) => {
+exports.taskComments = useAsync(async (req, res) => {
 
     try {
         const taskID = req.params.id
-        if (!taskID) return res.status(402).json(utils.JParser('provide the tasks id', false, []));
+        if (!taskID) return res.status(402).json(utils.JParser('provide the task id', false, []));
 
-        const tasks = await ModelTask.findOne({ _id: taskID});
+        const task = await ModelTask.findOne({ _id: taskID })
+            .populate('employee')
 
-        if (!tasks) return res.status(402).json(utils.JParser('No tasks have that kind of id ', false, []));
+        const comments = await ModelTaskComment.find({ task: task.id })
+            .populate('admin').populate('employee')
 
-        res.json(utils.JParser('Task fetch successfully', !!tasks, tasks));
-
-    } catch (e) {
-        throw new errorHandle(e.message, 400)
-    }
-})
-
-exports.deleteAgentTasks = useAsync(async (req, res) => {
-    try {
-
-        const salesAgentID = req.salesAgentID
-
-        const taskID = req.body.id
-        if (!taskID) return res.status(402).json(utils.JParser('provide the tasks id', false, []));
-
-        const body = { _id: taskID, salesAgentID: salesAgentID, createBy: 1 }
-        const check = await ModelTask.findOne(body)
-        if (check) {
-            const tasks = await ModelTask.deleteOne(body)
-            return res.json(utils.JParser('Tasks deleted successfully', !!tasks, []));
-        } else {
-            return res.json(utils.JParser("Tasks not found or you are not authorized", !!tasks, []));
-        }
-
-    } catch (e) {
-        throw new errorHandle(e.message, 400)
-    }
-
-});
-
-exports.getAgentTaskByStatus = useAsync(async (req, res) => {
-
-    try {
-
-        const status = req.params.status
-        const salesAgentID = req.salesAgentID
-
-        if (status) {
-            const tasks = await ModelTask.find({ status: status, salesAgentID: salesAgentID });
-
-            if (tasks) {
-                return res.json(utils.JParser('TaskS fetch successfully', !!tasks, tasks));
-            } else {
-                return res.status(402).json(utils.JParser('Invalid status', !!tasks, []));
-            }
-        } else {
-            return res.status(402).json(utils.JParser('Task not found', !!tasks, []));
-        }
+        res.json(utils.JParser('Task comment fetch successfully', !!task, { task, comments }));
 
     } catch (e) {
         throw new errorHandle(e.message, 400)

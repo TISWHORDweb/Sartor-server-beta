@@ -43,7 +43,8 @@ app.use(bodyParser.json())
 app.use("/api/v1/auth", Auth)
 app.use("/api/v1/admin", Admin)
 app.use("/api/v1", Universal)
-app.use('*', () => {
+
+app.use('*', (req, res) => {
     throw new errorHandle("Resource not found", 404);
 })
 
@@ -62,7 +63,7 @@ app.use(function (err, req, res) {
     res.render('error');
 });
 
-
+// 68485355d0fe1e751b0bd383
 mongoose.set("strictQuery", true);
     mongoose.connect(process.env.MONGO_URL)
     .then(() => {

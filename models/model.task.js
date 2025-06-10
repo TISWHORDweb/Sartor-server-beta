@@ -1,27 +1,36 @@
 const mongoose = require('mongoose')
 
-const taskSchema=new mongoose.Schema({
-    taskName:{
-        type:String,
+const taskSchema = new mongoose.Schema({
+    title: {
+        type: String,
     },
-    task:{
-        type:String, 
+    description: {
+        type: String,
     },
-    status:{
-        type:String, 
-        default: "Pending"
+    status: {
+        type: String,
+        enum: ["Pending", "Due", "Assigned", "Unconfirmed", "Completed", "Received", "Overdue", "To-Do", "Confirmed"],  // specifies allowed values
+        default: "Pending"                    // default value if none provided
     },
-    salesAgentID:{type:String},
-    adminID:{type:String},
-    taskFor:{type:Number, default:0}, // single agent = 1 | all agent =  2
-    quantity:{type:Number, default:0},
-    percent:{type:Number, default:0}, 
-    createBy:{type:Number, default:0}, // admin = 2 | agent =  1
-    creationDateTime:{type:Number, default:()=>Date.now()},	
-    updated_at:{type:Number, default:()=>Date.now()}	
+    admin: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-admin',
+        required: true
+    },
+    employee: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-new-employee',
+        required: true
+    },
+    dueDate: { type: String },
+    taskFor: { type: Number, default: 0 }, // single employee = 1 | all employee =  2
+    quantity: { type: Number, default: 0 },
+    percent: { type: Number, default: 0 },
+    creationDateTime: { type: Number, default: () => Date.now() },
+    updated_at: { type: Number, default: () => Date.now() }
 })
 
 
-const ModelTask=mongoose.model("model-task", taskSchema)
+const ModelTask = mongoose.model("model-task", taskSchema)
 
-module.exports=ModelTask
+module.exports = ModelTask

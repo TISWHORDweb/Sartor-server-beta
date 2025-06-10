@@ -22,7 +22,7 @@ const { useAsync, utils, errorHandle, } = require('./../core');
 // const MindCastFavourite = require('../models/model.favourites')
 const { EmailNote } = require('../core/core.notify')
 const ModelAdmin = require('../models/model.admin')
-const ModelSalesAgent = require('../models/model.salesAgent')
+const ModelEmployee = require('../models/model.employee')
 
 
 
@@ -109,7 +109,7 @@ exports.AdminLogin = useAsync(async (req, res) => {
     }
 })
 
-exports.SalesAgentRegister = useAsync(async (req, res) => {
+exports.EmployeeRegister = useAsync(async (req, res) => {
 
     if (req.body.password) {
         req.body.password = await bcrypt.hash(req.body.password, 13)
@@ -121,14 +121,14 @@ exports.SalesAgentRegister = useAsync(async (req, res) => {
         req.body.token = sha1(req.body.email + new Date())
         req.body.lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
 
-        const validates = await ModelSalesAgent.findOne({ email: req.body.email })
+        const validates = await ModelEmployee.findOne({ email: req.body.email })
         if (validates) {
             return res.json(utils.JParser('There is another Sales agent with this email', false, []));
         } else {
 
-            let salesAgent = await new ModelSalesAgent(req.body)
+            let Employee = await new ModelEmployee(req.body)
 
-            await salesAgent.save().then(data => {
+            await Employee.save().then(data => {
 
                 data.password = "********************************"
 
@@ -141,27 +141,27 @@ exports.SalesAgentRegister = useAsync(async (req, res) => {
     }
 })
 
-exports.SalesAgentLogin = useAsync(async (req, res) => {
+exports.EmployeeLogin = useAsync(async (req, res) => {
 
     try {
         res.header("Access-Control-Allow-Origin", "*");
-        const salesAgent = await ModelSalesAgent.findOne({ email: req.body.email })
+        const Employee = await ModelEmployee.findOne({ email: req.body.email })
         let resultt;
-        let salesAgentPassword;
+        let employeePassword;
         let name;
         let body;
         let subject;
 
-        if (salesAgent) {
-            email= salesAgent.email;
-            resultt = salesAgent.blocked;
-            salesAgentPassword = salesAgent.password;
-            name = salesAgent.fullName;
+        if (Employee) {
+            email= Employee.email;
+            resultt = Employee.blocked;
+            employeePassword = Employee.password;
+            name = Employee.fullName;
             body = "Login detected";
             subject = "Login Notification";
 
             //update user if regToken is passed
-            if (!!req.body.token) await salesAgent.update({ token: req.body.token })
+            if (!!req.body.token) await Employee.update({ token: req.body.token })
 
         } else {
             return res.json(utils.JParser("Invalid email or password", false, []));
@@ -171,8 +171,8 @@ exports.SalesAgentLogin = useAsync(async (req, res) => {
             return res.json(utils.JParser('Sorry your account is blocked', false, []));
         }
 
-        if (salesAgentPassword) {
-            const originalPassword = await bcrypt.compare(req.body.password, salesAgentPassword);
+        if (employeePassword) {
+            const originalPassword = await bcrypt.compare(req.body.password, employeePassword);
 
             if (!originalPassword) {
                 return res.json(utils.JParser('Wrong password', false, []));
@@ -181,10 +181,10 @@ exports.SalesAgentLogin = useAsync(async (req, res) => {
                 const token = sha1(req.body.email + new Date())
                 const lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
 
-                await ModelSalesAgent.updateOne({ _id: salesAgent._id }, { $set: {token: token, lastLogin: lastLogin } }).then(() => {
+                await ModelEmployee.updateOne({ _id: Employee._id }, { $set: {token: token, lastLogin: lastLogin } }).then(() => {
                     EmailNote(email,name,body,subject)
-                    salesAgent.token = token
-                    return res.json(utils.JParser('logged in successfuly', true,  salesAgent ));
+                    Employee.token = token
+                    return res.json(utils.JParser('logged in successfuly', true,  Employee ));
                 })
             }
         }
