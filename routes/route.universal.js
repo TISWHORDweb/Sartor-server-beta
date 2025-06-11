@@ -8,7 +8,7 @@ const router = express.Router();
 const CoreError = require('../core/core.error');
 const { company, getSalesAgentCompany, editCompany, getCompanyByType, singleCompany, allCompany, deleteCompany, companyType, editCompanyType, singleCompanyType, allCompanyType, deleteCompanyType } = require('../controller/controller.company');
 const { deal, editDeal, getSalesAgentDeal, singleDeal, companyDeal, allDeal, deleteDeal } = require('../controller/controller.deal');
-const { editTask, getTasks, singleTask, taskComment, singleTaskComment, taskComments, changeTaskStatus } = require('../controller/controller.task');
+const { editTask, getTasks, singleTask, taskComment, singleTaskComment, taskComments, changeTaskStatus, tasksByStatus } = require('../controller/controller.task');
 const { getEmployee } = require('../controller/controller.employee');
 
 /**
@@ -46,12 +46,12 @@ router.get('/sales-agent/deal/all', universalBodyGuard, allDeal );
 router.get('/sales-agent/deal/:id', universalBodyGuard, singleDeal );
 
 ////TASKS
-router.put('/task/edit', universalBodyGuard, editTask );
 router.get('/my/tasks', universalBodyGuard, getTasks );
 router.get('/task/:id', universalBodyGuard, singleTask );
 router.put('/task/status/update/:id', universalBodyGuard, changeTaskStatus );
+router.get('/tasks/status/:status', universalBodyGuard, tasksByStatus );
 
-//TASLS COMMENT
+//TASKS COMMENT
 router.post('/task/comment', universalBodyGuard, taskComment );
 router.get('/single/comment/:id', universalBodyGuard, singleTaskComment );
 router.get('/task/comment/:id', universalBodyGuard, taskComments );

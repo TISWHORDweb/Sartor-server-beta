@@ -9,7 +9,7 @@ const CoreError = require('../core/core.error');
 const { getAdmin, singleAdmin, editAdmin, allAdmin, deleteAdmin, createEmployee } = require('../controller/controller.admin');
 const { product, singleProduct, allProduct, deleteProduct, editProduct, getAdminProduct, productCategory, singleProductCategory, editProductCategory, allProductCategory, deleteProductCategory, getProductsByCategory } = require('../controller/controller.product');
 const { editEmployee, singleEmployee, allEmployee, deleteEmployee } = require('../controller/controller.employee');
-const { deleteAdminTasks, CreateTask, allTasks } = require('../controller/controller.task');
+const { deleteAdminTasks, CreateTask, allTasks, tasksByStatusAdmin, editTask } = require('../controller/controller.task');
 
 /**
  * auth routes
@@ -49,8 +49,10 @@ router.get('/product/category/single/:id', adminBodyGuard, singleProductCategory
 
 ////TASKS
 router.post('/create/task', adminBodyGuard, CreateTask );
+router.put('/task/edit', adminBodyGuard, editTask );
 router.delete('/task/delete', adminBodyGuard, deleteAdminTasks );
 router.get('/tasks', adminBodyGuard, allTasks );
+router.get('/tasks/status/:status', adminBodyGuard, tasksByStatusAdmin );
 
 
 /**

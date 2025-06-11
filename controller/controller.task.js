@@ -196,28 +196,129 @@ exports.deleteAdminTasks = useAsync(async (req, res) => {
 
 });
 
-exports.getTaskByStatus = useAsync(async (req, res) => {
+// exports.getTaskByStatus = useAsync(async (req, res) => {
 
+//     try {
+
+//         const status = req.params.status
+//         const adminID = req.adminID
+
+//         if (status) {
+//             const tasks = await ModelTask.find({ status: status });
+//             if (tasks) {
+//                 return res.json(utils.JParser('TaskS fetch successfully', !!tasks, tasks));
+//             } else {
+//                 return res.status(402).json(utils.JParser('Invalid status', !!tasks, []));
+//             }
+//         } else {
+//             return res.status(402).json(utils.JParser('Task not found', !!tasks, []));
+//         }
+
+//     } catch (e) {
+//         throw new errorHandle(e.message, 400)
+//     }
+// })
+
+exports.tasksByStatusAdmin = useAsync(async (req, res) => {
     try {
+        const { status } = req.params;
+        const page = parseInt(req.query.page) || 1; // Default to page 1 if not specified
+        const limit = 10; // Fixed limit of 10 items per page
+        const skip = (page - 1) * limit;
 
-        const status = req.params.status
-        const adminID = req.adminID
-
-        if (status) {
-            const tasks = await ModelTask.find({ status: status });
-            if (tasks) {
-                return res.json(utils.JParser('TaskS fetch successfully', !!tasks, tasks));
-            } else {
-                return res.status(402).json(utils.JParser('Invalid status', !!tasks, []));
-            }
-        } else {
-            return res.status(402).json(utils.JParser('Task not found', !!tasks, []));
+        // Validate status
+        const validStatuses = [
+            "Pending", "Due", "Assigned", "Unconfirmed", 
+            "Completed", "Received", "Overdue", "To-Do", "Confirmed"
+        ];
+        
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json(utils.JParser('Invalid status provided', false, null));
         }
 
+        // Get paginated tasks by status, newest first
+        const tasks = await ModelTask.find({ status })
+            .sort({ createdAt: -1 }) // Sort by newest first
+            .skip(skip)
+            .limit(limit)
+            .populate('admin')
+            .populate('employee');
+
+        // Get total count of tasks with this status for pagination info
+        const totalTasks = await ModelTask.countDocuments({ status });
+        const totalPages = Math.ceil(totalTasks / limit);
+
+        // Prepare response with pagination metadata
+        const response = {
+            tasks: tasks,
+            pagination: {
+                currentPage: page,
+                totalPages: totalPages,
+                totalTasks: totalTasks,
+                tasksPerPage: limit,
+                hasNextPage: page < totalPages,
+                hasPreviousPage: page > 1
+            }
+        };
+
+        return res.json(utils.JParser(`Tasks with status ${status} fetched successfully`, true, response));
     } catch (e) {
-        throw new errorHandle(e.message, 400)
+        throw new errorHandle(e.message, 400);
     }
-})
+});
+
+
+exports.tasksByStatus = useAsync(async (req, res) => {
+    try {
+        const { status } = req.params;
+        const employee = req.userId
+        
+
+        const page = parseInt(req.query.page) || 1; // Default to page 1 if not specified
+        const limit = 10; // Fixed limit of 10 items per page
+        const skip = (page - 1) * limit;
+
+        // Validate status
+        const validStatuses = [
+            "Pending", "Due", "Assigned", "Unconfirmed", 
+            "Completed", "Received", "Overdue", "To-Do", "Confirmed"
+        ];
+        
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json(utils.JParser('Invalid status provided', false, null));
+        }
+
+        // Get paginated tasks by status, newest first
+        const tasks = await ModelTask.find({ status, employee })
+            .sort({ createdAt: -1 }) // Sort by newest first
+            .skip(skip)
+            .limit(limit)
+            .populate('admin')
+            .populate('employee');
+
+        // Get total count of tasks with this status for pagination info
+        const totalTasks = await ModelTask.countDocuments({ status, employee });
+        const totalPages = Math.ceil(totalTasks / limit);
+
+        // Prepare response with pagination metadata
+        const response = {
+            tasks: tasks,
+            pagination: {
+                currentPage: page,
+                totalPages: totalPages,
+                totalTasks: totalTasks,
+                tasksPerPage: limit,
+                hasNextPage: page < totalPages,
+                hasPreviousPage: page > 1
+            }
+        };
+
+        return res.json(utils.JParser(`Tasks with status ${status} fetched successfully`, true, response));
+    } catch (e) {
+        throw new errorHandle(e.message, 400);
+    }
+});
+
 
 //////////////////////////////////////////////////////////////////////////////////////
 //// TASKS COMMENT  
