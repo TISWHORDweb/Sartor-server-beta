@@ -60,6 +60,9 @@ const employeeSchema = new mongoose.Schema({
     lastLogin: {
         type: String,
     },
+    employeeId: {
+        type: String,
+    },
     role: {
         type: String,
         enum: ["Manager", "Admin", "Sales Rep", "Inventory Manager", "Merchandiser"],

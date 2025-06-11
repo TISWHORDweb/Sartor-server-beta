@@ -2,7 +2,7 @@ const dotenv = require("dotenv")
 dotenv.config()
 const { useAsync, utils, errorHandle, } = require('../core');
 const ModelAdmin = require("../models/model.admin");
-const { generatePassword } = require("../core/core.utils");
+const { generatePassword, getNextSMOId } = require("../core/core.utils");
 const bcrypt = require('bcryptjs')
 const CryptoJS = require("crypto-js")
 const sha1 = require('sha1');
@@ -17,6 +17,7 @@ exports.createEmployee= useAsync(async (req, res) => {
         const adminID = req.userId
 
         const Password = await generatePassword(9);
+        const employeeId = await getNextSMOId();
 
         if (Password) {
             req.body.password = await bcrypt.hash(Password, 13)
@@ -25,6 +26,7 @@ exports.createEmployee= useAsync(async (req, res) => {
         if (!req.body.email  || !req.body.password ) return res.json(utils.JParser('please check the fields', false, []));
 
         req.body.adminID = adminID
+        req.body.employeeId = employeeId
         req.body.token = sha1(req.body.email + new Date())
         req.body.lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
 
