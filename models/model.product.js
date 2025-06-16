@@ -1,39 +1,47 @@
 const mongoose = require('mongoose')
 
-const productSchema=new mongoose.Schema({
-    productName:{
-        type:String,
+const productSchema = new mongoose.Schema({
+    productName: {
+        type: String,
     },
-    productID:{
-        type:String, 
+    supplier: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-supplier',
+        required: true
     },
-    categoryID:{
-        type:String, 
+    batchNumber: {
+        type: String,
     },
-    buyingPrice:{
-        type:String, 
+    barcodeNumber: {
+        type: String,
     },
-    quantity:{
-        type:String,
+    quantity: {
+        type: String,
     },
-    unit:{
-        type:String,    
+    unit: {
+        type: String,
     },
-    expiryDate:{
-        type:String,
+    buyingPrice: {
+        type: String,
     },
-    sellingPrice:{
-        type:String,
+    expiryDate: {
+        type: String,
     },
-    productImage:{
-        type:String,
+    description: {
+        type: String,
     },
-    adminID:{type:String},
-    creationDateTime:{type:Number, default:()=>Date.now()},	
-    updated_at:{type:Number, default:()=>Date.now()}	
+    sellingPrice: {
+        type: String,
+    },
+    productImage: {
+        type: String,
+    },
+    userID: { type: String },
+    creationDateTime: { type: Number, default: () => Date.now() },
+    updated_at: { type: Number, default: () => Date.now() }
 })
 
 
-const ModelProduct=mongoose.model("model-product", productSchema)
+const ModelProduct = mongoose.model("model-product", productSchema)
 
-module.exports=ModelProduct
+module.exports = ModelProduct
