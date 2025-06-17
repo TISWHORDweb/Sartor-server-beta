@@ -8,13 +8,9 @@ const taskCommentSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'model-task'
     },
-    admin: {
+    user: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'model-admin',
-    },
-    employee: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'model-new-employee',
+        ref: 'model-user',
     },
     createBy: { type: Number, default: 0 }, // admin = 2 | agent =  1
     creationDateTime: { type: Number, default: () => Date.now() },

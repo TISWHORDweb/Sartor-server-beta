@@ -40,7 +40,7 @@ exports.createEmployee= useAsync(async (req, res) => {
             const body = {
                 email:email,
                 name :'',
-                body: `Congratulastion an account has been created for you as a salesa agent in sator kindly use your login with your email and the following password - ${Password}`,
+                body: `Congratulastion an account has been created for you as an Employee in sator kindly use your login with your email and the following password - ${Password}`,
                 subject :"Account creation"
             }
 

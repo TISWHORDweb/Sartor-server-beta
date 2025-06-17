@@ -12,14 +12,9 @@ const taskSchema = new mongoose.Schema({
         enum: ["Pending", "Due", "Assigned", "Unconfirmed", "Completed", "Received", "Overdue", "To-Do", "Confirmed"],  // specifies allowed values
         default: "Pending"                    // default value if none provided
     },
-    admin: {
+    user: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'model-admin',
-        required: true
-    },
-    employee: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'model-new-employee',
+        ref: 'model-user',
         required: true
     },
     dueDate: { type: String },

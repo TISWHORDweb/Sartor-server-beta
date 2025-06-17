@@ -1,7 +1,7 @@
 const dotenv = require("dotenv")
 dotenv.config()
 const { useAsync, utils, errorHandle, } = require('../core');
-const ModelSalesAgent = require("../models/model.salesAgent");
+const ModelEmployee = require("../models/model.employee");
 const ModelProduct = require("../models/model.product");
 const Joi = require("joi");
 const ModelProductCategory = require("../models/model.productCategory");
