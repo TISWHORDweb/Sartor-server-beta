@@ -47,7 +47,7 @@ exports.authMiddleware = useAsync(async (req, res, next) => {
     } else res.status(400).json(utils.JParser("Invalid token code or token, Use a valid token and try again", false, []));
 })
 
-exports.roleMiddleware = useAsync((roles) => {
+exports.roleMiddleware = (roles) => {
   return (req, res, next) => {
     const userRole = req.user.userRole;
     
@@ -63,4 +63,4 @@ exports.roleMiddleware = useAsync((roles) => {
     
     next();
   };
-});
+};

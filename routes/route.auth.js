@@ -6,18 +6,16 @@ const {bodyParser} = require('../middleware/middleware.protects');
 const express = require('express');
 const router = express.Router();
 const CoreError = require('./../core/core.error');
-const { AdminRegister, AdminLogin, EmployeeLogin } = require('../controller/controller.auth');
+const { UserRegister, UserLogin } = require('../controller/controller.auth');
 
 /**
  * auth routes
  */
 
 // ADMIN
-router.post('/admin/register', bodyParser, AdminRegister);
-router.post('/admin/login', bodyParser, AdminLogin);
+router.post('/register', bodyParser, UserRegister);
+router.post('/login', bodyParser, UserLogin);
 
-// SALES AGENT
-router.post('/employee/login', bodyParser, EmployeeLogin);
 /**
  * Export lastly
  */

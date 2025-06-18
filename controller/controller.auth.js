@@ -16,36 +16,40 @@ const dotenv = require("dotenv")
 const sha1 = require('sha1');
 dotenv.config()
 const request = require('request');
-// const GlobalModel = require('../../../models/mongoro/admin/super_admin/global/global_md')
-const { notify } = require('../core/core.utils');
+// const GlobalModel = require('../../../models/mongoro/user/super_user/global/global_md')
+const { notify, getNextSMOId } = require('../core/core.utils');
 const { useAsync, utils, errorHandle, } = require('./../core');
 // const MindCastFavourite = require('../models/model.favourites')
 const { EmailNote } = require('../core/core.notify')
-const ModelAdmin = require('../models/model.admin')
-const ModelEmployee = require('../models/model.employee')
+const ModelUser = require('../models/model.user')
 
 
 
-exports.AdminRegister = useAsync(async (req, res) => {
+exports.UserRegister = useAsync(async (req, res) => {
 
     if (req.body.password) {
         req.body.password = await bcrypt.hash(req.body.password, 13)
     }
 
     try {
-        if (!req.body.email  || !req.body.password ) return res.json(utils.JParser('please check the fields', false, []));
 
+        if (!req.body.email || !req.body.password) return res.json(utils.JParser('please check the fields', false, []));
+        const userId = await getNextSMOId();
         req.body.token = sha1(req.body.email + new Date())
         req.body.lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
+        req.body.userRole = "admin"
+        req.body.role = "Admin"
+        req.body.userId = userId
 
-        const validates = await ModelAdmin.findOne({ email: req.body.email })
+
+        const validates = await ModelUser.findOne({ email: req.body.email })
         if (validates) {
-            return res.json(utils.JParser('There is another admin with this email', false, []));
+            return res.json(utils.JParser('There is another user with this email', false, []));
         } else {
 
-            let admin = await new ModelAdmin(req.body)
+            let user = await new ModelUser(req.body)
 
-            await admin.save().then(data => {
+            await user.save().then(data => {
 
                 data.password = "********************************"
 
@@ -58,49 +62,49 @@ exports.AdminRegister = useAsync(async (req, res) => {
     }
 })
 
-exports.AdminLogin = useAsync(async (req, res) => {
+exports.UserLogin = useAsync(async (req, res) => {
     try {
         res.header("Access-Control-Allow-Origin", "*");
-        const admin = await ModelAdmin.findOne({ email: req.body.email })
+        const user = await ModelUser.findOne({ email: req.body.email })
         let resultt;
-        let adminPassword;
+        let userPassword;
         let name;
         let body;
         let subject;
 
-        if (admin) {
-            email= admin.email;
-            resultt = admin.blocked;
-            adminPassword = admin.password;
-            name = admin.fullName;
+        if (user) {
+            email = user.email;
+            resultt = user.blocked;
+            userPassword = user.password;
+            name = user.fullName;
             body = "Login detected";
             subject = "Login Notification";
 
             //update user if regToken is passed
-            if (!!req.body.token) await admin.update({ token: req.body.token })
+            if (!!req.body.token) await user.update({ token: req.body.token })
 
         } else {
             return res.json(utils.JParser("Invalid email or password", false, []));
         }
-        
+
         if (resultt === true) {
             return res.json(utils.JParser('Sorry your account is blocked', false, []));
         }
 
-        if (adminPassword) {
-            const originalPassword = await bcrypt.compare(req.body.password, adminPassword);
+        if (userPassword) {
+            const originalPassword = await bcrypt.compare(req.body.password, userPassword);
 
             if (!originalPassword) {
-                return res.json(utils.JParser('Wrong password', false, []));
+                return res.json(utils.JParser('Wrong email or password', false, []));
             } else {
 
                 const token = sha1(req.body.email + new Date())
                 const lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
 
-                await ModelAdmin.updateOne({ _id: admin._id }, { $set: {token: token, lastLogin: lastLogin } }).then(() => {
-                    EmailNote(email,name,body,subject)
-                    admin.token = token
-                    return res.json(utils.JParser('logged in successfuly', true,  admin ));
+                await ModelUser.updateOne({ _id: user._id }, { $set: { token: token, lastLogin: lastLogin } }).then(() => {
+                    EmailNote(email, name, body, subject)
+                    user.token = token
+                    return res.json(utils.JParser('logged in successfuly', true, user));
                 })
             }
         }
@@ -116,7 +120,7 @@ exports.EmployeeRegister = useAsync(async (req, res) => {
     }
 
     try {
-        if (!req.body.email  || !req.body.password ) return res.json(utils.JParser('please check the fields', false, []));
+        if (!req.body.email || !req.body.password) return res.json(utils.JParser('please check the fields', false, []));
 
         req.body.token = sha1(req.body.email + new Date())
         req.body.lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
@@ -153,7 +157,7 @@ exports.EmployeeLogin = useAsync(async (req, res) => {
         let subject;
 
         if (Employee) {
-            email= Employee.email;
+            email = Employee.email;
             resultt = Employee.blocked;
             employeePassword = Employee.password;
             name = Employee.fullName;
@@ -166,7 +170,7 @@ exports.EmployeeLogin = useAsync(async (req, res) => {
         } else {
             return res.json(utils.JParser("Invalid email or password", false, []));
         }
-        
+
         if (resultt === true) {
             return res.json(utils.JParser('Sorry your account is blocked', false, []));
         }
@@ -181,10 +185,10 @@ exports.EmployeeLogin = useAsync(async (req, res) => {
                 const token = sha1(req.body.email + new Date())
                 const lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
 
-                await ModelEmployee.updateOne({ _id: Employee._id }, { $set: {token: token, lastLogin: lastLogin } }).then(() => {
-                    EmailNote(email,name,body,subject)
+                await ModelEmployee.updateOne({ _id: Employee._id }, { $set: { token: token, lastLogin: lastLogin } }).then(() => {
+                    EmailNote(email, name, body, subject)
                     Employee.token = token
-                    return res.json(utils.JParser('logged in successfuly', true,  Employee ));
+                    return res.json(utils.JParser('logged in successfuly', true, Employee));
                 })
             }
         }

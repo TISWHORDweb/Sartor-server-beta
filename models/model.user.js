@@ -60,7 +60,7 @@ const userSchema = new mongoose.Schema({
     lastLogin: {
         type: String,
     },
-    employeeId: {
+    userId: {
         type: String,
     },
     role: {

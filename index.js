@@ -5,7 +5,6 @@ const cors = require('cors')
 const path = require('path');
 const bodyParser = require('body-parser')
 const Auth = require('./routes/route.auth')
-const Admin = require('./routes/route.admin')
 const Universal = require('./routes/route.universal')
 
 const mongoose = require('mongoose');
@@ -41,7 +40,6 @@ app.use('/docs', express.static(path.join(__dirname, 'docs')));
 app.use(bodyParser.json())
 
 app.use("/api/v1/auth", Auth)
-app.use("/api/v1/admin", Admin)
 app.use("/api/v1", Universal)
 
 app.use('*', (req, res) => {

@@ -14,13 +14,13 @@ exports.CreateTask = useAsync(async (req, res) => {
 
     try {
 
-        const adminId = req.userId
+        const userId = req.userId
 
         //create data if all data available
         const schema = Joi.object({
             title: Joi.string().min(3).required(),
             description: Joi.string().min(3).required(),
-            employee: Joi.string().required(),
+            user: Joi.string().required(),
             dueDate: Joi.string().min(1).required(),
         })
 
@@ -29,8 +29,6 @@ exports.CreateTask = useAsync(async (req, res) => {
 
         //validate data
         const validator = await schema.validateAsync(req.body);
-
-        validator.admin = adminId
 
         const tasks = await ModelTask.create(validator)
         return res.json(utils.JParser('Tasks created successfully', !!tasks, tasks));
@@ -64,12 +62,12 @@ exports.changeTaskStatus = useAsync(async (req, res) => {
 
     try {
 
-        const taskID = req.params.id
+        const taskID = req.body.id
         const status = req.body.status
 
         if (!taskID) return res.status(402).json(utils.JParser('provide the tasks id', false, []));
 
-        await ModelTask.updateOne({ _id: taskID }, {status}).then(async () => {
+        await ModelTask.updateOne({ _id: taskID }, { status }).then(async () => {
             const tasks = await ModelTask.find({ _id: taskID });
             return res.json(utils.JParser('Status changed update Successfully', !!tasks, tasks));
         })
@@ -84,10 +82,10 @@ exports.getTasks = useAsync(async (req, res) => {
     try {
 
         const userId = req.userId
+        const user = req.user
 
-        const tasks = await ModelTask.find({ employee: userId })
-            .populate('admin')
-            .populate('employee');
+        const tasks = user.userRole === "admin" ? await ModelTask.find().populate('user')
+            : await ModelTask.find({ user: userId }).populate('user')
 
 
         // Calculate status counts
@@ -124,47 +122,6 @@ exports.getTasks = useAsync(async (req, res) => {
     }
 })
 
-exports.allTasks = useAsync(async (req, res) => {
-    try {
-        // Get all tasks
-        const tasks = await ModelTask.find()
-            .populate('admin')
-            .populate('employee');
-
-        // Calculate status counts
-        const statusCounts = {
-            "Pending": 0,
-            "Due": 0,
-            "Assigned": 0,
-            "Unconfirmed": 0,
-            "Completed": 0,
-            "Received": 0,
-            "Overdue": 0,
-            "To-Do": 0,
-            "Confirmed": 0
-        };
-
-        tasks.forEach(task => {
-            if (task.status && statusCounts.hasOwnProperty(task.status)) {
-                statusCounts[task.status]++;
-            }
-        });
-
-        // Prepare response with both tasks and analytics
-        const response = {
-            tasks: tasks,
-            analytics: {
-                statusCounts: statusCounts,
-                totalTasks: tasks.length
-            }
-        };
-
-        return res.json(utils.JParser('Tasks fetched successfully', true, response));
-    } catch (e) {
-        throw new errorHandle(e.message, 400);
-    }
-});
-
 exports.singleTask = useAsync(async (req, res) => {
 
     try {
@@ -172,7 +129,7 @@ exports.singleTask = useAsync(async (req, res) => {
         if (!taskID) return res.status(402).json(utils.JParser('provide the tasks id', false, []));
 
         const tasks = await ModelTask.findOne({ _id: taskID })
-            .populate('admin').populate('employee')
+            .populate('user')
 
         res.json(utils.JParser('Task fetch successfully', !!tasks, tasks));
 
@@ -182,7 +139,7 @@ exports.singleTask = useAsync(async (req, res) => {
 })
 
 
-exports.deleteAdminTasks = useAsync(async (req, res) => {
+exports.deleteTasks = useAsync(async (req, res) => {
     try {
         const taskID = req.body.id
         if (!taskID) return res.status(402).json(utils.JParser('provide the tasks id', false, []));
@@ -196,83 +153,16 @@ exports.deleteAdminTasks = useAsync(async (req, res) => {
 
 });
 
-// exports.getTaskByStatus = useAsync(async (req, res) => {
-
-//     try {
-
-//         const status = req.params.status
-//         const adminID = req.adminID
-
-//         if (status) {
-//             const tasks = await ModelTask.find({ status: status });
-//             if (tasks) {
-//                 return res.json(utils.JParser('TaskS fetch successfully', !!tasks, tasks));
-//             } else {
-//                 return res.status(402).json(utils.JParser('Invalid status', !!tasks, []));
-//             }
-//         } else {
-//             return res.status(402).json(utils.JParser('Task not found', !!tasks, []));
-//         }
-
-//     } catch (e) {
-//         throw new errorHandle(e.message, 400)
-//     }
-// })
-
-exports.tasksByStatusAdmin = useAsync(async (req, res) => {
-    try {
-        const { status } = req.params;
-        const page = parseInt(req.query.page) || 1; // Default to page 1 if not specified
-        const limit = 10; // Fixed limit of 10 items per page
-        const skip = (page - 1) * limit;
-
-        // Validate status
-        const validStatuses = [
-            "Pending", "Due", "Assigned", "Unconfirmed", 
-            "Completed", "Received", "Overdue", "To-Do", "Confirmed"
-        ];
-        
-        if (!validStatuses.includes(status)) {
-            return res.status(400).json(utils.JParser('Invalid status provided', false, null));
-        }
-
-        // Get paginated tasks by status, newest first
-        const tasks = await ModelTask.find({ status })
-            .sort({ createdAt: -1 }) // Sort by newest first
-            .skip(skip)
-            .limit(limit)
-            .populate('admin')
-            .populate('employee');
-
-        // Get total count of tasks with this status for pagination info
-        const totalTasks = await ModelTask.countDocuments({ status });
-        const totalPages = Math.ceil(totalTasks / limit);
-
-        // Prepare response with pagination metadata
-        const response = {
-            tasks: tasks,
-            pagination: {
-                currentPage: page,
-                totalPages: totalPages,
-                totalTasks: totalTasks,
-                tasksPerPage: limit,
-                hasNextPage: page < totalPages,
-                hasPreviousPage: page > 1
-            }
-        };
-
-        return res.json(utils.JParser(`Tasks with status ${status} fetched successfully`, true, response));
-    } catch (e) {
-        throw new errorHandle(e.message, 400);
-    }
-});
-
 
 exports.tasksByStatus = useAsync(async (req, res) => {
     try {
         const { status } = req.params;
-        const employee = req.userId
-        
+        const user = req.userId
+        const role = req.user.userRole
+
+        const option = { status, user }
+        const option2 = { status }
+
 
         const page = parseInt(req.query.page) || 1; // Default to page 1 if not specified
         const limit = 10; // Fixed limit of 10 items per page
@@ -280,24 +170,23 @@ exports.tasksByStatus = useAsync(async (req, res) => {
 
         // Validate status
         const validStatuses = [
-            "Pending", "Due", "Assigned", "Unconfirmed", 
+            "Pending", "Due", "Assigned", "Unconfirmed",
             "Completed", "Received", "Overdue", "To-Do", "Confirmed"
         ];
-        
+
         if (!validStatuses.includes(status)) {
             return res.status(400).json(utils.JParser('Invalid status provided', false, null));
         }
 
         // Get paginated tasks by status, newest first
-        const tasks = await ModelTask.find({ status, employee })
+        const tasks = await ModelTask.find(role === "admin" ? option2 : option)
             .sort({ createdAt: -1 }) // Sort by newest first
             .skip(skip)
             .limit(limit)
-            .populate('admin')
-            .populate('employee');
+            .populate('user')
 
         // Get total count of tasks with this status for pagination info
-        const totalTasks = await ModelTask.countDocuments({ status, employee });
+        const totalTasks = await ModelTask.countDocuments(role === "admin" ? option2 : option);
         const totalPages = Math.ceil(totalTasks / limit);
 
         // Prepare response with pagination metadata
@@ -340,7 +229,7 @@ exports.taskComment = useAsync(async (req, res) => {
 
         //validate data
         const validator = await schema.validateAsync(req.body);
-        validator.admin = who === 2 ? userId : null
+        validator.user = who === 2 ? userId : null
         validator.employee = who === 1 ? userId : null
         validator.createBy = who
         validator.task = taskId
@@ -361,7 +250,7 @@ exports.singleTaskComment = useAsync(async (req, res) => {
         if (!comment) return res.status(402).json(utils.JParser('provide the comment id', false, []));
 
         const tasks = await ModelTaskComment.findOne({ _id: comment })
-            .populate('admin').populate('employee').populate('task')
+            .populate('user').populate('employee').populate('task')
 
         res.json(utils.JParser('Comment fetch successfully', !!tasks, tasks));
 
@@ -380,7 +269,7 @@ exports.taskComments = useAsync(async (req, res) => {
             .populate('employee')
 
         const comments = await ModelTaskComment.find({ task: task.id })
-            .populate('admin').populate('employee')
+            .populate('user').populate('employee')
 
         res.json(utils.JParser('Task comment fetch successfully', !!task, { task, comments }));
 
