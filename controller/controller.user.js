@@ -84,7 +84,7 @@ exports.createUser= useAsync(async (req, res) => {
     try {
 
         const Password = await generatePassword(9);
-        const userId = await getNextSMOId();
+        const userId = await getNextSMOId(1);
 
         if (Password) {
             req.body.password = await bcrypt.hash(Password, 13)
@@ -125,3 +125,4 @@ exports.createUser= useAsync(async (req, res) => {
         throw new errorHandle(e.message, 400)
     }
 })
+

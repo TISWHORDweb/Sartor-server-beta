@@ -4,8 +4,6 @@
 
 const { errorHandle, useAsync, utils } = require('../core');
 const CryptoJS = require("crypto-js");
-const ModelAdmin = require('../models/model.admin');
-const ModelEmployee = require('../models/model.employee');
 const ModelUser = require('../models/model.user');
 
 //body safe state

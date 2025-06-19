@@ -1,4 +1,5 @@
-const ModelEmployee = require("../models/model.employee");
+const ModelLead = require("../models/model.lead");
+const ModelUser = require("../models/model.user");
 
 
 class CoreError extends Error {
@@ -39,24 +40,30 @@ exports.generatePercent = (x, y) => {
     return (x / y) * 100;
 }
 
-exports.getNextSMOId = async () => {
-  // 1. Find the last assigned SMO ID
-  const lastEmployee = await ModelEmployee.findOne().sort({ employeeId: -1 }).limit(1);
-  
-  // 2. Extract the last number (default to 0 if no records)
-  let lastNumber = 0;
-  if (lastEmployee && lastEmployee.employeeId) {
-    const parts = lastEmployee.employeeId.split('-');
-    lastNumber = parseInt(parts[1]) || 0;
-  }
-  
-  // 3. Generate the next ID
-  const prefix = "SMO";
-  const now = new Date();
-  const year = now.getFullYear().toString().slice(-2);
-  const month = (now.getMonth() + 1).toString().padStart(2, '0');
-  const dateCode = `${year}${month}`;
-  const nextNumber = (lastNumber + 1).toString().padStart(2, '0');
-  
-  return `${prefix}${dateCode}-${nextNumber}`; // e.g., "SMO221-11"
+exports.getNextSMOId = async (id) => {
+    // 1. Find the last assigned SMO ID
+    let lastData
+
+    if (id === 1) {
+        lastData = await ModelUser.findOne().sort({ userId: -1 }).limit(1);
+    } else {
+        lastData = await ModelLead.findOne().sort({ userId: -1 }).limit(1);
+    }
+
+    // 2. Extract the last number (default to 0 if no records)
+    let lastNumber = 0;
+    if (lastData && lastData.userId) {
+        const parts = lastData.userId.split('-');
+        lastNumber = parseInt(parts[1]) || 0;
+    }
+
+    // 3. Generate the next ID
+    const prefix = "SMO";
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const dateCode = `${year}${month}`;
+    const nextNumber = (lastNumber + 1).toString().padStart(2, '0');
+
+    return `${prefix}${dateCode}-${nextNumber}`; // e.g., "SMO221-11"
 }
