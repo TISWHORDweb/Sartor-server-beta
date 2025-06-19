@@ -1,3 +1,4 @@
+const ModelProduct = require("../models/model.LabelGenerator");
 const ModelLead = require("../models/model.lead");
 const ModelUser = require("../models/model.user");
 
@@ -40,25 +41,34 @@ exports.generatePercent = (x, y) => {
     return (x / y) * 100;
 }
 
-exports.getNextSMOId = async (id) => {
+exports.genID = async (id) => {
     // 1. Find the last assigned SMO ID
     let lastData
 
     if (id === 1) {
         lastData = await ModelUser.findOne().sort({ userId: -1 }).limit(1);
+    } else if (id === 2) {
+        lastData = await ModelProduct.findOne().sort({ batchId: -1 }).limit(1);
     } else {
         lastData = await ModelLead.findOne().sort({ userId: -1 }).limit(1);
     }
 
     // 2. Extract the last number (default to 0 if no records)
     let lastNumber = 0;
-    if (lastData && lastData.userId) {
-        const parts = lastData.userId.split('-');
-        lastNumber = parseInt(parts[1]) || 0;
+    if (id === 1) {
+        if (lastData && lastData.userId) {
+            const parts = lastData.userId.split('-');
+            lastNumber = parseInt(parts[1]) || 0;
+        }
+    } else {
+        if (lastData && lastData.batchId) {
+            const parts = lastData.batchId.split('-');
+            lastNumber = parseInt(parts[1]) || 0;
+        }
     }
 
     // 3. Generate the next ID
-    const prefix = "SMO";
+    const prefix = id === 1 ? "SMO" : "BCH";
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
     const month = (now.getMonth() + 1).toString().padStart(2, '0');

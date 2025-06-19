@@ -17,7 +17,7 @@ const sha1 = require('sha1');
 dotenv.config()
 const request = require('request');
 // const GlobalModel = require('../../../models/mongoro/user/super_user/global/global_md')
-const { notify, getNextSMOId } = require('../core/core.utils');
+const { notify, genID } = require('../core/core.utils');
 const { useAsync, utils, errorHandle, } = require('./../core');
 // const MindCastFavourite = require('../models/model.favourites')
 const { EmailNote } = require('../core/core.notify')
@@ -34,7 +34,7 @@ exports.UserRegister = useAsync(async (req, res) => {
     try {
 
         if (!req.body.email || !req.body.password) return res.json(utils.JParser('please check the fields', false, []));
-        const userId = await getNextSMOId();
+        const userId = await genID(1);
         req.body.token = sha1(req.body.email + new Date())
         req.body.lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
         req.body.userRole = "admin"
