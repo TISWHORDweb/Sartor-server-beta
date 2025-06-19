@@ -1,7 +1,7 @@
 const dotenv = require("dotenv")
 dotenv.config()
 const { useAsync, utils, errorHandle, } = require('../core');
-const { generatePassword, getNextSMOId } = require("../core/core.utils");
+const { generatePassword, genID } = require("../core/core.utils");
 const bcrypt = require('bcryptjs')
 const CryptoJS = require("crypto-js")
 const sha1 = require('sha1');
@@ -84,7 +84,7 @@ exports.createUser= useAsync(async (req, res) => {
     try {
 
         const Password = await generatePassword(9);
-        const userId = await getNextSMOId(1);
+        const userId = await genID(1);
 
         if (Password) {
             req.body.password = await bcrypt.hash(Password, 13)
