@@ -12,6 +12,7 @@ const { getUser, deleteUser, singleUser, editUser, allUser, createUser } = requi
 const { deleteTasks, CreateTask, editTask } = require('../controller/controller.task');
 const { useAsync } = require('../core');
 const { CreateLead, UpdateLead, DeleteLead, GetAllLeads, GetSingleLead, CreateLpo, UpdateLpo, DeleteLpo, GetAllLpos, GetSingleLpo } = require('../controller/controller.customer');
+const { CreateSupplier, UpdateSupplier, DeleteSupplier, GetAllSuppliers, GetSingleSupplier, CreateProduct, UpdateProduct, DeleteProduct, GetAllProducts, GetSingleProduct, CreateRestock, UpdateRestock, DeleteRestock, GetAllRestocks, GetSingleRestock } = require('../controller/controller.product');
 
 
 /**
@@ -54,21 +55,26 @@ router.delete('/lpo/delete/:id', useAsync(authMiddleware), useAsync(roleMiddlewa
 router.get('/lpos', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllLpos );
 router.get('/lpo/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleLpo );
 
-//PRODUCTS
-// router.post('/product/create',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), product );
-// router.get('/products', useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), getAdminProduct  );
-// router.put('/product/edit',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), editProduct  );
-// router.get('/product/all',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), allProduct  );
-// router.delete('/product/delete',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), deleteProduct  );
-// router.get('/product/category/:id',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), getProductsByCategory  );
-// router.get('/product/single/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), singleProduct );
+//SUPPLIER
+router.post('/supplier', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateSupplier );
+router.put('/supplier/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdateSupplier );
+router.delete('/supplier/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteSupplier );
+router.get('/suppliers', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllSuppliers );
+router.get('/supplier/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleSupplier );
 
-// //PRODUCT CATEGORY
-// router.post('/product/category/create',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), productCategory );
-// router.put('/product/category/edit',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), editProductCategory  );
-// router.delete('/product/category/delete',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), deleteProductCategory  );
-// router.get('/product/categorys',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), allProductCategory  );
-// router.get('/product/category/single/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), singleProductCategory );
+//PRODUCT
+router.post('/product', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateProduct );
+router.put('/product/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdateProduct );
+router.delete('/product/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteProduct );
+router.get('/products', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllProducts );
+router.get('/product/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleProduct );
+
+//RESTOCK
+router.post('/restock', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateRestock );
+router.put('/restock/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdateRestock );
+router.delete('/restock/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteRestock );
+router.get('/restocks', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllRestocks );
+router.get('/restock/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleRestock );
 
 /**
  * Export lastly
