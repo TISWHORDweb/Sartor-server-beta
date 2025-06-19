@@ -17,7 +17,7 @@ const leadContactSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ["COO  ", "CEO", "Manager"],  // specifies allowed values
+        enum: ["COO", "CEO", "Manager"],  // specifies allowed values
     },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }

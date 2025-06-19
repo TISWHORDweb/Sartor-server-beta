@@ -6,7 +6,7 @@ const ModelTask = require("../models/model.task");
 const ModelTaskComment = require("../models/model.taskComment");
 const ModelLead = require("../models/model.lead");
 const ModelLeadContact = require("../models/model.leadContact");
-const { getNextSMOId } = require("../core/core.utils");
+const { genID } = require("../core/core.utils");
 const ModelLpo = require("../models/model.lpo");
 const ModelLpoProduct = require("../models/model.lpoProduct");
 
@@ -26,16 +26,17 @@ exports.CreateLpo = useAsync(async (req, res) => {
 
         const lpo = await ModelLpo.create(validator);
 
+        let createdProducts;
         if (validator.product && validator.product.length > 0) {
             const productsWithLpoId = validator.product.map(product => ({
                 ...product,
                 lpo: lpo._id
             }));
 
-            await ModelLpoProduct.insertMany(productsWithLpoId);
+            createdProducts = await ModelLpoProduct.insertMany(productsWithLpoId);
         }
 
-        return res.json(utils.JParser('LPO created successfully', !!lpo, lpo));
+        return res.json(utils.JParser('LPO created successfully', !!lpo, { lpo, products: createdProducts || [] }));
 
     } catch (e) {
         throw new Error(e.message);
@@ -88,11 +89,15 @@ exports.DeleteLpo = useAsync(async (req, res) => {
 exports.GetAllLpos = useAsync(async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        const skip = (page - 1) * limit;
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
 
-        // Fetch paginated LPOs
-        const lpos = await ModelLpo.find().skip(skip).limit(limit).lean();
+        // Fetch LPOs (with or without pagination)
+        const query = ModelLpo.find().lean().populate('lead');
+        if (limit !== null) {
+            query.skip(skip).limit(limit);
+        }
+        const lpos = await query.exec();
 
         // Fetch associated products in a single query
         const lpoIds = lpos.map(lpo => lpo._id);
@@ -111,18 +116,19 @@ exports.GetAllLpos = useAsync(async (req, res) => {
             products: productsByLpoId[lpo._id] || []
         }));
 
-        // Pagination metadata
-        const totalLpos = await ModelLpo.countDocuments();
+        const response = utils.JParser('LPOs fetched successfully', true, { lpos: lposWithProducts })
 
-        return res.json(utils.JParser('LPOs fetched successfully', true, {
-            lpos: lposWithProducts,
-            pagination: {
+        if (limit !== null) {
+            const totalLpos = await ModelLpo.countDocuments();
+            response.data.pagination = {
                 currentPage: page,
                 totalPages: Math.ceil(totalLpos / limit),
                 totalLpos,
                 limit
-            }
-        }));
+            };
+        }
+
+        return res.json(response);
 
     } catch (e) {
         throw new Error(e.message);
@@ -132,7 +138,7 @@ exports.GetAllLpos = useAsync(async (req, res) => {
 exports.GetSingleLpo = useAsync(async (req, res) => {
     try {
         const { id } = req.params;
-        const lpo = await ModelLpo.findById(id).lean();
+        const lpo = await ModelLpo.findById(id).lean().populate('lead');
 
         if (!lpo) {
             return res.status(404).json(utils.JParser('LPO not found', false, null));
@@ -154,6 +160,8 @@ exports.GetSingleLpo = useAsync(async (req, res) => {
 //////////////////////////////////////////////////////////////////////////////////////
 ////LEADS ROUTES
 //////////////////////////////////////////////////////////////////////////////////////
+
+
 exports.CreateLead = useAsync(async (req, res) => {
     try {
         //create data if all data available
@@ -171,7 +179,7 @@ exports.CreateLead = useAsync(async (req, res) => {
             contact: Joi.array().required(),
         });
 
-        const userId = await getNextSMOId(1);
+        const userId = await genID(1);
 
         //validate data
         const validator = await schema.validateAsync(req.body);
@@ -241,7 +249,7 @@ exports.DeleteLead = useAsync(async (req, res) => {
         // Optional: Delete associated contacts
         await ModelLeadContact.deleteMany({ lead: id });
 
-        return res.json(utils.JParser('Lead deleted successfully', !!deletedLead, deletedLead));
+        return res.json(utils.JParser('Lead deleted successfully', !!deletedLead, []));
     } catch (e) {
         throw new Error(e.message);
     }
@@ -250,14 +258,14 @@ exports.DeleteLead = useAsync(async (req, res) => {
 exports.GetAllLeads = useAsync(async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1; // Current page (default: 1)
-        const limit = parseInt(req.query.limit) || 10; // Items per page (default: 10)
-        const skip = (page - 1) * limit;
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
 
-        // 1. Fetch paginated leads
-        const leads = await ModelLead.find()
-            .skip(skip)
-            .limit(limit)
-            .lean(); // Convert to plain JS object for modification
+        const query = ModelLead.find().lean();
+        if (limit !== null) {
+            query.skip(skip).limit(limit);
+        }
+        const leads = await query.exec();
 
         // 2. Get all contacts for these leads in a single query
         const leadIds = leads.map(lead => lead._id);
@@ -276,19 +284,19 @@ exports.GetAllLeads = useAsync(async (req, res) => {
             contacts: contactsByLeadId[lead._id] || []
         }));
 
-        // 5. Get total count for pagination metadata
-        const totalLeads = await ModelLead.countDocuments();
-        const totalPages = Math.ceil(totalLeads / limit);
+        const response = utils.JParser('Leads fetched successfully', true, { leads: leadsWithContacts })
 
-        return res.json(utils.JParser('Leads fetched successfully', true, {
-            leads: leadsWithContacts,
-            pagination: {
+        if (limit !== null) {
+            const totalLeads = await ModelLead.countDocuments();
+            response.data.pagination = {
                 currentPage: page,
-                totalPages,
+                totalPages: Math.ceil(totalLeads / limit),
                 totalLeads,
                 limit
-            }
-        }));
+            };
+        }
+
+        return res.json(response);
 
     } catch (e) {
         throw new Error(e.message);
