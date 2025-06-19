@@ -36,7 +36,11 @@ const productSchema = new mongoose.Schema({
     productImage: {
         type: String,
     },
-    userID: { type: String },
+    status: {
+        type: String,
+        enum: ["In-Stock  ", "Out of Stock"], 
+    },
+    batchId: { type: String },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }
 })

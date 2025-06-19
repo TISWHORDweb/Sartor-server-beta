@@ -1,231 +1,466 @@
 const dotenv = require("dotenv")
 dotenv.config()
 const { useAsync, utils, errorHandle, } = require('../core');
-const ModelEmployee = require("../models/model.employee");
 const ModelProduct = require("../models/model.product");
 const Joi = require("joi");
-const ModelProductCategory = require("../models/model.productCategory");
+const ModelRestock = require("../models/model.restock");
+const ModelSupplier = require("../models/model.supplier");
+const { genID } = require("../core/core.utils");
 
-exports.product = useAsync(async (req, res) => {
 
+exports.CreateProduct = useAsync(async (req, res) => {
     try {
-        
-        const adminID = req.adminID
-
-        //create data if all data available
         const schema = Joi.object({
-            productName: Joi.string().min(1).required(),
-            productID: Joi.string().min(1).required(),
-            categoryID: Joi.string().min(1).required(),
-            buyingPrice: Joi.string().min(1).required(),
-            quantity: Joi.string().min(1).required(),
-            unit: Joi.required(),
-            expiryDate: Joi.string().min(1).required(),
-            productImage: Joi.string().min(1).required(),
-            sellingPrice: Joi.string().min(1).required()
-        })
+            productName: Joi.string().required(),
+            supplier: Joi.string().required(),
+            // batchNumber: Joi.string().optional(),
+            barcodeNumber: Joi.string().optional(),
+            quantity: Joi.string().required(),
+            unit: Joi.string().required(),
+            buyingPrice: Joi.string().required(),
+            expiryDate: Joi.string().optional(),
+            description: Joi.string().optional(),
+            sellingPrice: Joi.string().required(),
+            productImage: Joi.string().optional()
+        });
 
-        //capture data
-        const { productName, productID, categoryID, buyingPrice, quantity, unit, expiryDate, productImage, sellingPrice } = req.body;
+        const batchId = await genID(2);
 
-        //validate data
         const validator = await schema.validateAsync(req.body);
+        validator.batchId = batchId
+        const product = await ModelProduct.create(validator);
 
-        validator.adminID = adminID
-
-        const product = await ModelProduct.create(validator)
         return res.json(utils.JParser('Product created successfully', !!product, product));
-
     } catch (e) {
-        throw new errorHandle(e.message, 400)
+        throw new Error(e.message);
     }
-
-})
-
-exports.editProduct = useAsync(async (req, res) => {
-
-    try {
-
-        const productID = req.body.id
-        const body = req.body
-
-        if (!productID) return res.status(402).json(utils.JParser('provide the Product id', false, []));
-
-        await ModelProduct.updateOne({ _id: productID }, body).then(async () => {
-            const product = await ModelProduct.find({ _id: productID });
-            return res.json(utils.JParser('Product update Successfully', !!product, product));
-        })
-
-    } catch (e) {
-        throw new errorHandle(e.message, 400)
-    }
-})
-
-exports.getAdminProduct = useAsync(async (req, res) => {
-
-    try {
-
-        const adminID = req.adminID
-
-        const product = await ModelProduct.find({ adminID: adminID });
-        return res.json(utils.JParser('Product fetch successfully', !!product, product));
-    } catch (e) {
-        throw new errorHandle(e.message, 400)
-    }
-})
-
-exports.singleProduct = useAsync(async (req, res) => {
-
-    try {
-        const productID = req.params.id
-
-        const product = await ModelProduct.findOne({ productID: productID });
-
-        if (!product) {
-            const product = await ModelProduct.findOne({ _id: productID })
-            return res.json(utils.JParser('Product fetch successfully', !!product, product));
-        }
-
-        res.json(utils.JParser('Product fetch successfully', !!product, product));
-
-    } catch (e) {
-        throw new errorHandle(e.message, 400)
-    }
-})
-
-exports.allProduct = useAsync(async (req, res) => {
-
-    try {
-        const product = await ModelProduct.find();
-        return res.json(utils.JParser('All Products fetch successfully', !!product, product));
-    } catch (e) {
-        throw new errorHandle(e.message, 400)
-    }
-})
-
-exports.deleteProduct = useAsync(async (req, res) => {
-    try {
-        const productID = req.body.id
-        if (!productID) return res.status(402).json(utils.JParser('provide the product id', false, []));
-
-        const product = await ModelProduct.deleteOne({ _id: productID })
-        return res.json(utils.JParser('Product deleted successfully', !!product, []));
-
-    } catch (e) {
-        throw new errorHandle(e.message, 400)
-    }
-
 });
 
-exports.getProductsByCategory = useAsync(async (req, res) => {
 
+exports.UpdateProduct = useAsync(async (req, res) => {
     try {
+        const { id } = req.params;
+        const schema = Joi.object({
+            productName: Joi.string().optional(),
+            supplier: Joi.string().optional(),
+            batchNumber: Joi.string().optional(),
+            barcodeNumber: Joi.string().optional(),
+            quantity: Joi.string().optional(),
+            unit: Joi.string().optional(),
+            buyingPrice: Joi.string().optional(),
+            expiryDate: Joi.string().optional(),
+            description: Joi.string().optional(),
+            sellingPrice: Joi.string().optional(),
+            productImage: Joi.string().optional(),
+            status: Joi.string().optional()
+        });
 
-        const categoryID = req.params.id
+        const validator = await schema.validateAsync(req.body);
+        validator.updated_at = Date.now(); // Auto-update timestamp
 
-        const category = await ModelProductCategory.findOne({ _id: categoryID });
-        if (category) {
-            const product = await ModelProduct.find({ categoryID: categoryID });
-            return res.json(utils.JParser('Product fetch successfully', !!category, { category, product }));
-        } else {
-            return res.status(402).json(utils.JParser('Product not found', !!category, []));
+        const updatedProduct = await ModelProduct.findByIdAndUpdate(id, validator, { new: true });
+
+        if (!updatedProduct) {
+            return res.status(404).json(utils.JParser('Product not found', false, null));
         }
 
+        return res.json(utils.JParser('Product updated successfully', !!updatedProduct, updatedProduct));
     } catch (e) {
-        throw new errorHandle(e.message, 400)
+        throw new Error(e.message);
     }
-})
+});
 
-//////////////////////////////////////////////////////////////////////////////
-// PRODUCT CATEGORY
-//////////////////////////////////////////////////////////////////////////////
 
-exports.productCategory = useAsync(async (req, res) => {
-
+exports.DeleteProduct = useAsync(async (req, res) => {
     try {
+        const { id } = req.params;
+        const deletedProduct = await ModelProduct.findByIdAndDelete(id);
 
-        const adminID = req.adminID
+        if (!deletedProduct) {
+            return res.status(404).json(utils.JParser('Product not found', false, null));
+        }
 
-        //create data if all data available
-        const schema = Joi.object({
-            category: Joi.string().min(1).required(),
-        })
+        return res.json(utils.JParser('Product deleted successfully', !!deletedProduct, deletedProduct));
+    } catch (e) {
+        throw new Error(e.message);
+    }
+});
 
-        //capture data
-        const { category } = req.body;
 
-        //validate data
+exports.GetAllProducts = useAsync(async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+
+        const query = ModelProduct.find()
+            .populate('supplier')
+            .lean();
+
+        if (limit !== null) query.skip(skip).limit(limit);
+        const products = await query.exec();
+
+        const productIds = products.map(p => p._id);
+        const restocks = await ModelRestock.find({ product: { $in: productIds } })
+            .sort({ creationDateTime: -1 })
+            .lean();
+
+        const restocksByProduct = restocks.reduce((acc, restock) => {
+            if (!acc[restock.product]) acc[restock.product] = [];
+            acc[restock.product].push({
+                quantity: restock.quantity,
+                date: restock.creationDateTime
+            });
+            return acc;
+        }, {});
+
+        const productsWithRestocks = products.map(product => ({
+            ...product,
+            restocks: (restocksByProduct[product._id] || []).slice(0, 5) // Last 5 restocks
+        }));
+
+        const response = utils.JParser('Products fetched successfully', !!products,
+            { data: productsWithRestocks }
+        );
+
+        if (limit !== null) {
+            const totalProducts = await ModelProduct.countDocuments();
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalProducts / limit),
+                totalProducts,
+                limit
+            };
+        }
+
+        return res.json(response);
+    } catch (e) {
+        throw new Error(e.message);
+    }
+});
+
+exports.GetSingleProduct = useAsync(async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // 1. Fetch the product (with supplier info)
+        const product = await ModelProduct.findById(id)
+            .populate('supplier')
+            .lean();
+
+        if (!product) {
+            return res.status(404).json(utils.JParser('Product not found', false, null));
+        }
+
+        // 2. Fetch all restocks for this product
+        const restocks = await ModelRestock.find({ product: id })
+            .sort({ creationDateTime: -1 }) // Newest first
+            .select('quantity creationDateTime updated_at')
+            .lean();
+
+        // 3. Attach restocks to the product
+        const productWithRestocks = {
+            ...product,
+            restocks: restocks // Includes full restock history
+        };
+
+        return res.json(utils.JParser('Product fetched successfully', true, productWithRestocks));
+
+    } catch (e) {
+        throw new Error(e.message);
+    }
+});
+
+//////////////////////////////////////////////////////////////////////////////////////
+////RESTOCK ROUTES
+//////////////////////////////////////////////////////////////////////////////////////
+
+
+exports.CreateRestock = useAsync(async (req, res) => {
+    try {
+        // Define schema for a single restock item
+        const itemSchema = Joi.object({
+            supplier: Joi.string().required(),
+            product: Joi.string().required(),
+            quantity: Joi.string().required()
+        });
+
+        // Validate the entire array
+        const schema = Joi.array().items(itemSchema).required();
         const validator = await schema.validateAsync(req.body);
 
-        validator.adminID = adminID
+        // Create all restocks in a single operation
+        const restocks = await ModelRestock.insertMany(validator);
 
-        const productCategory = await ModelProductCategory.create(validator)
-        return res.json(utils.JParser('Product category created successfully', !!productCategory, productCategory));
-
-    } catch (e) {
-        throw new errorHandle(e.message, 400)
-    }
-
-})
-
-exports.editProductCategory = useAsync(async (req, res) => {
-
-    try {
-
-        const categoryID = req.body.id
-        const body = req.body
-
-        if (!categoryID) return res.status(402).json(utils.JParser('provide the Product category id', false, []));
-
-        await ModelProductCategory.updateOne({ _id: categoryID }, body).then(async () => {
-            const category = await ModelProductCategory.find({ _id: categoryID });
-            return res.json(utils.JParser('Product category update Successfully', !!category, category));
-        })
+        return res.json(utils.JParser(
+            `${restocks.length} restocks created successfully`,
+            true,
+            restocks
+        ));
 
     } catch (e) {
-        throw new errorHandle(e.message, 400)
+        throw new Error(e.message);
     }
-})
+});
 
-
-exports.singleProductCategory = useAsync(async (req, res) => {
-
+exports.UpdateRestock = useAsync(async (req, res) => {
     try {
-        const categoryID = req.params.id
+        const { id } = req.params;
+        const schema = Joi.object({
+            supplier: Joi.string().optional(),
+            product: Joi.string().optional(),
+            quantity: Joi.string().optional()
+        });
 
-        const category = await ModelProductCategory.findOne({ _id: categoryID });
+        const validator = await schema.validateAsync(req.body);
+        validator.updated_at = Date.now();
 
-        if (!category) {
-            return res.json(utils.JParser('Product not found', false, []));
+        const updatedRestock = await ModelRestock.findByIdAndUpdate(id, validator, { new: true });
+
+        if (!updatedRestock) {
+            return res.status(404).json(utils.JParser('Restock not found', false, null));
         }
 
-        res.json(utils.JParser('Product category fetch successfully', !!category, category));
-
+        return res.json(utils.JParser('Restock updated successfully', !!updatedRestock, updatedRestock));
     } catch (e) {
-        throw new errorHandle(e.message, 400)
+        throw new Error(e.message);
     }
-})
+});
 
-exports.allProductCategory = useAsync(async (req, res) => {
-
+exports.DeleteRestock = useAsync(async (req, res) => {
     try {
-        const category = await ModelProductCategory.find();
-        return res.json(utils.JParser('All product category fetch successfully', !!category, category));
-    } catch (e) {
-        throw new errorHandle(e.message, 400)
-    }
-})
+        const { id } = req.params;
+        const deletedRestock = await ModelRestock.findByIdAndDelete(id);
 
-exports.deleteProductCategory = useAsync(async (req, res) => {
+        if (!deletedRestock) {
+            return res.status(404).json(utils.JParser('Restock not found', false, null));
+        }
+
+        return res.json(utils.JParser('Restock deleted successfully', !!deletedRestock, deletedRestock));
+    } catch (e) {
+        throw new Error(e.message);
+    }
+});
+
+exports.GetAllRestocks = useAsync(async (req, res) => {
     try {
-        const categoryID = req.body.id
-        if (!categoryID) return res.status(402).json(utils.JParser('provide the product category id', false, []));
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
 
-        const category = await ModelProductCategory.deleteOne({ _id: categoryID })
-        return res.json(utils.JParser('Product deleted successfully', !!category, []));
+        const query = ModelRestock.find()
+            .populate('supplier')
+            .populate('product')
+            .lean();
 
+        if (limit !== null) query.skip(skip).limit(limit);
+        const restocks = await query.exec();
+
+        const response = utils.JParser('Restocks fetched successfully', !!restocks,
+            { data: restocks });
+
+        if (limit !== null) {
+            const totalRestocks = await ModelRestock.countDocuments();
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalRestocks / limit),
+                totalRestocks,
+                limit
+            };
+        }
+
+        return res.json(response);
     } catch (e) {
-        throw new errorHandle(e.message, 400)
+        throw new Error(e.message);
     }
+});
 
+exports.GetSingleRestock = useAsync(async (req, res) => {
+    try {
+        const { id } = req.params;
+        const restock = await ModelRestock.findById(id)
+            .populate('supplier')
+            .populate('product')
+            .lean();
+
+        if (!restock) {
+            return res.status(404).json(utils.JParser('Restock not found', false, null));
+        }
+
+        return res.json(utils.JParser('Restock fetched successfully', true, restock));
+    } catch (e) {
+        throw new Error(e.message);
+    }
+});
+
+//////////////////////////////////////////////////////////////////////////////////////
+////SUPPLIER ROUTES
+//////////////////////////////////////////////////////////////////////////////////////
+
+
+exports.CreateSupplier = useAsync(async (req, res) => {
+    try {
+        const schema = Joi.object({
+            name: Joi.string().required(),
+            product: Joi.string().optional(),
+            contactName: Joi.string().optional(),
+            contactRole: Joi.string().optional(),
+            contactNumber: Joi.string().optional(),
+            phone: Joi.string().optional(),
+            address: Joi.string().optional(),
+            email: Joi.string().email().required(),
+            branch: Joi.string().optional()
+        });
+
+        const validator = await schema.validateAsync(req.body);
+
+        const validates = await ModelSupplier.findOne({ email: validator.email })
+        if (validates) {
+            return res.json(utils.JParser('There is another supplier with this email', false, []));
+        } else {
+            const supplier = await ModelSupplier.create(validator);
+            return res.json(utils.JParser('Supplier created successfully', !!supplier, supplier));
+        }
+    } catch (e) {
+        throw new Error(e.message);
+    }
+});
+
+exports.UpdateSupplier = useAsync(async (req, res) => {
+    try {
+        const { id } = req.params;
+        const schema = Joi.object({
+            name: Joi.string().optional(),
+            product: Joi.string().optional(),
+            contactName: Joi.string().optional(),
+            contactRole: Joi.string().optional(),
+            contactNumber: Joi.string().optional(),
+            phone: Joi.string().optional(),
+            address: Joi.string().optional(),
+            email: Joi.string().email().optional(),
+            branch: Joi.string().optional()
+        });
+
+        const validator = await schema.validateAsync(req.body);
+        validator.updated_at = Date.now();
+
+        const updatedSupplier = await ModelSupplier.findByIdAndUpdate(id, validator, { new: true });
+
+        if (!updatedSupplier) {
+            return res.status(404).json(utils.JParser('Supplier not found', false, null));
+        }
+
+        return res.json(utils.JParser('Supplier updated successfully', !!updatedSupplier, updatedSupplier));
+    } catch (e) {
+        throw new Error(e.message);
+    }
+});
+
+exports.DeleteSupplier = useAsync(async (req, res) => {
+    try {
+        const { id } = req.params;
+        const deletedSupplier = await ModelSupplier.findByIdAndDelete(id);
+
+        if (!deletedSupplier) {
+            return res.status(404).json(utils.JParser('Supplier not found', false, null));
+        }
+
+        return res.json(utils.JParser('Supplier deleted successfully', !!deletedSupplier, deletedSupplier));
+    } catch (e) {
+        throw new Error(e.message);
+    }
+});
+
+
+exports.GetAllSuppliers = useAsync(async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+
+        const query = ModelSupplier.find().lean();
+        if (limit !== null) query.skip(skip).limit(limit);
+        const suppliers = await query.exec();
+
+
+        const supplierIds = suppliers.map(s => s._id);
+
+        const products = await ModelProduct.find({ supplier: { $in: supplierIds } })
+            // .select('productName quantity _id supplier')
+            .lean();
+
+        const restocks = await ModelRestock.find({ supplier: { $in: supplierIds } })
+            // .select('quantity creationDateTime product')
+            .lean();
+
+        const productsBySupplier = products.reduce((acc, product) => {
+            if (!acc[product.supplier]) acc[product.supplier] = [];
+            acc[product.supplier].push(product);
+            return acc;
+        }, {});
+
+        const restocksBySupplier = restocks.reduce((acc, restock) => {
+            if (!acc[restock.supplier]) acc[restock.supplier] = [];
+            acc[restock.supplier].push(restock);
+            return acc;
+        }, {});
+
+        const suppliersWithDetails = suppliers.map(supplier => ({
+            ...supplier,
+            products: productsBySupplier[supplier._id] || [],
+            restocks: restocksBySupplier[supplier._id] || []
+        }));
+
+        const response = utils.JParser('Suppliers fetched successfully', true,
+            { data: suppliersWithDetails }
+        );
+
+        if (limit !== null) {
+            const totalSuppliers = await ModelSupplier.countDocuments();
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalSuppliers / limit),
+                totalSuppliers,
+                limit
+            };
+        }
+
+        return res.json(response);
+    } catch (e) {
+        throw new Error(e.message);
+    }
+});
+
+exports.GetSingleSupplier = useAsync(async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // 1. Fetch supplier
+        const supplier = await ModelSupplier.findById(id).lean();
+        if (!supplier) {
+            return res.status(404).json(utils.JParser('Supplier not found', false, null));
+        }
+
+        // 2. Fetch related products and restocks
+        const [products, restocks] = await Promise.all([
+            ModelProduct.find({ supplier: id })
+                // .select('productName quantity _id')
+                .lean(),
+            ModelRestock.find({ supplier: id })
+                // .select('quantity creationDateTime product')
+                .populate('product', 'productName _id')
+                .lean()
+        ]);
+
+        // 3. Combine data
+        const supplierWithDetails = {
+            ...supplier,
+            products,
+            restocks
+        };
+
+        return res.json(utils.JParser('Supplier fetched successfully', true, supplierWithDetails));
+    } catch (e) {
+        throw new Error(e.message);
+    }
 });
