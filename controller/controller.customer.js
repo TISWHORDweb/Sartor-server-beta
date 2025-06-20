@@ -179,7 +179,7 @@ exports.CreateLead = useAsync(async (req, res) => {
             contact: Joi.array().required(),
         });
 
-        const userId = await genID(1);
+        const userId = await genID(4);
 
         //validate data
         const validator = await schema.validateAsync(req.body);
@@ -219,7 +219,6 @@ exports.UpdateLead = useAsync(async (req, res) => {
             type: Joi.string().min(3).optional(),
             stores: Joi.number().optional(),
             dealSize: Joi.string().optional(),
-            status: Joi.string().min(3).optional(),
             notes: Joi.string().min(3).optional(),
             contact: Joi.array().optional(),
         });

@@ -1,3 +1,4 @@
+const ModelCustomer = require("../models/model.customer");
 const ModelProduct = require("../models/model.LabelGenerator");
 const ModelLead = require("../models/model.lead");
 const ModelUser = require("../models/model.user");
@@ -49,7 +50,9 @@ exports.genID = async (id) => {
         lastData = await ModelUser.findOne().sort({ userId: -1 }).limit(1);
     } else if (id === 2) {
         lastData = await ModelProduct.findOne().sort({ batchId: -1 }).limit(1);
-    } else {
+    } else if (id === 3) {
+        lastData = await ModelCustomer.findOne().sort({ customerId: -1 }).limit(1);
+    } else if (id === 4) {
         lastData = await ModelLead.findOne().sort({ userId: -1 }).limit(1);
     }
 
@@ -60,15 +63,25 @@ exports.genID = async (id) => {
             const parts = lastData.userId.split('-');
             lastNumber = parseInt(parts[1]) || 0;
         }
-    } else {
+    } else if (id === 2) {
         if (lastData && lastData.batchId) {
             const parts = lastData.batchId.split('-');
+            lastNumber = parseInt(parts[1]) || 0;
+        }
+    } else if (id === 3) {
+        if (lastData && lastData.customerId) {
+            const parts = lastData.customerId.split('-');
+            lastNumber = parseInt(parts[1]) || 0;
+        }
+    } else if (id === 4) {
+        if (lastData && lastData.userId) {
+            const parts = lastData.userId.split('-');
             lastNumber = parseInt(parts[1]) || 0;
         }
     }
 
     // 3. Generate the next ID
-    const prefix = id === 1 ? "SMO" : "BCH";
+    const prefix = id === 1 || id === 4 ? "SMO" : id === 2 ? "BCH" : "CUS"
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
