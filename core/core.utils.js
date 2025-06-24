@@ -1,4 +1,5 @@
 const ModelCustomer = require("../models/model.customer");
+const ModelInvoice = require("../models/model.invoice");
 const ModelProduct = require("../models/model.LabelGenerator");
 const ModelLead = require("../models/model.lead");
 const ModelUser = require("../models/model.user");
@@ -54,9 +55,10 @@ exports.genID = async (id) => {
         lastData = await ModelCustomer.findOne().sort({ customerId: -1 }).limit(1);
     } else if (id === 4) {
         lastData = await ModelLead.findOne().sort({ userId: -1 }).limit(1);
+      } else if (id === 5) {
+        lastData = await ModelInvoice.findOne().sort({ invoiceId: -1 }).limit(1);
     }
 
-    // 2. Extract the last number (default to 0 if no records)
     let lastNumber = 0;
     if (id === 1) {
         if (lastData && lastData.userId) {
@@ -78,15 +80,20 @@ exports.genID = async (id) => {
             const parts = lastData.userId.split('-');
             lastNumber = parseInt(parts[1]) || 0;
         }
+    } else if (id === 5) {
+        if (lastData && lastData.invoiceId) {
+            const parts = lastData.invoiceId.split('-');
+            lastNumber = parseInt(parts[1]) || 0;
+        }
     }
 
     // 3. Generate the next ID
-    const prefix = id === 1 || id === 4 ? "SMO" : id === 2 ? "BCH" : "CUS"
+    const prefix = id === 1 || id === 4 ? "SMO" : id === 2 ? "BCH" :  id === 3 ? "CUS" : "INV"
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
     const dateCode = `${year}${month}`;
     const nextNumber = (lastNumber + 1).toString().padStart(2, '0');
 
-    return `${prefix}${dateCode}-${nextNumber}`; // e.g., "SMO221-11"
+    return `${prefix}${dateCode}-${nextNumber}`; 
 }

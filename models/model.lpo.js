@@ -13,7 +13,8 @@ const lpoSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ["Delivered", "In Transit", "Processing", "Cancelled", "Sorted", "Received", "Overdue", "To-Do", "Confirmed"],  // specifies allowed values                  // default value if none provided
+        enum: ["Delivered", "In Transit", "Processing", "Cancelled", "Sorted", "Received", "Overdue", "To-Do", "Confirmed"],
+        default: "Processing" 
     },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }

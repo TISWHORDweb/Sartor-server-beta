@@ -9,6 +9,7 @@ const ModelLeadContact = require("../models/model.leadContact");
 const { genID } = require("../core/core.utils");
 const ModelLpo = require("../models/model.lpo");
 const ModelLpoProduct = require("../models/model.lpoProduct");
+const ModelInvoice = require("../models/model.invoice");
 
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -36,7 +37,9 @@ exports.CreateLpo = useAsync(async (req, res) => {
             createdProducts = await ModelLpoProduct.insertMany(productsWithLpoId);
         }
 
-        return res.json(utils.JParser('LPO created successfully', !!lpo, { lpo, products: createdProducts || [] }));
+        const invoice = await createInvoiceFromLpo(lpo._id);
+
+        return res.json(utils.JParser('LPO created successfully', !!lpo, { lpo, products: createdProducts || [], invoice }));
 
     } catch (e) {
         throw new Error(e.message);
@@ -321,6 +324,120 @@ exports.GetSingleLead = useAsync(async (req, res) => {
         };
 
         return res.json(utils.JParser('Lead fetched successfully', !!leadWithContacts, leadWithContacts));
+    } catch (e) {
+        throw new Error(e.message);
+    }
+});
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+////INVOICE ROUTES
+//////////////////////////////////////////////////////////////////////////////////////
+
+const createInvoiceFromLpo = async (lpoId) => {
+    try {
+        const lpo = await ModelLpo.findById(lpoId).populate('lead');
+
+        const lpoProducts = await ModelLpoProduct.find({ lpo: lpoId }).populate('product');
+
+        if (!lpo) {
+            throw new Error('LPO not found');
+        }
+
+        // Calculate invoice values
+        let totalAmount = 0;
+        let totalQty = 0;
+
+        lpoProducts.forEach(item => {
+            const quantity = parseFloat(item.quantity) || 0;
+            const price = parseFloat(parseInt(item?.product?.unit || 0)) || 0;
+            totalAmount += quantity * price;
+            totalQty += quantity;
+        });
+
+        const productCount = lpoProducts.length;
+
+        // Calculate due date (7 days from now)
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 7);
+
+        // Create the invoice
+        const invoice = await ModelInvoice.create({
+            lpo: lpoId,
+            lead: lpo.lead._id,
+            name: lpo.lead.name, // Assuming lead has a name property
+            dueDate: dueDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+            totalAmount: totalAmount.toString(),
+            qty: totalQty.toString(),
+            products: productCount.toString(),
+            invoiceId: await genID(5),
+            status: "Processing"
+        });
+
+        return invoice;
+    } catch (error) {
+        throw new Error(`Failed to create invoice: ${error.message}`);
+    }
+};
+
+
+exports.GetAllInvoices = useAsync(async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1; // Current page (default: 1)
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+
+        const query = ModelInvoice.find().populate("lead").populate("lpo").lean();
+        if (limit !== null) {
+            query.skip(skip).limit(limit);
+        }
+        const invoices = await query.exec();
+
+        const response = utils.JParser('Invoice fetched successfully', true, { invoices })
+
+        if (limit !== null) {
+            const totalInvoice = await ModelInvoice.countDocuments();
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalInvoice / limit),
+                totalInvoice,
+                limit
+            };
+        }
+
+        return res.json(response);
+
+    } catch (e) {
+        throw new Error(e.message);
+    }
+});
+
+exports.GetSingleInvoice = useAsync(async (req, res) => {
+    try {
+        const { id } = req.params;
+        const invoice = await ModelInvoice.findById(id).populate("lead").populate("lpo").lean();
+
+        if (!invoice) {
+            return res.status(404).json(utils.JParser('Invoice not found', false, null));
+        }
+
+        return res.json(utils.JParser('Invoice fetched successfully', !!invoice, invoice));
+    } catch (e) {
+        throw new Error(e.message);
+    }
+});
+
+exports.DeleteInvoice = useAsync(async (req, res) => {
+    try {
+        const { id } = req.params;
+        const deletedInvoice = await ModelLead.findByIdAndDelete(id);
+
+        if (!deletedInvoice) {
+            return res.status(404).json(utils.JParser('Invoice not found', false, null));
+        }
+
+        return res.json(utils.JParser('Invoice deleted successfully', !!deletedInvoice, []));
     } catch (e) {
         throw new Error(e.message);
     }

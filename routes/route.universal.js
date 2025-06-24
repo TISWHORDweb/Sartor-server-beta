@@ -6,12 +6,12 @@ const {authMiddleware, roleMiddleware} = require('../middleware/middleware.prote
 const express = require('express');
 const router = express.Router();
 const CoreError = require('../core/core.error');
-const { getTasks, singleTask, taskComment, singleTaskComment, taskComments, changeTaskStatus, tasksByStatus } = require('../controller/controller.task');
+const { getTasks, singleTask, taskComment, singleTaskComment, taskComments, changeTaskStatus, tasksByStatus, changeInvoiceStatus } = require('../controller/controller.task');
 const { getUser, deleteUser, singleUser, editUser, allUser, createUser } = require('../controller/controller.user');
 // const { product, singleProduct, allProduct, deleteProduct, editProduct, getAdminProduct, productCategory, singleProductCategory, editProductCategory, allProductCategory, deleteProductCategory, getProductsByCategory } = require('../controller/controller.product');
 const { deleteTasks, CreateTask, editTask } = require('../controller/controller.task');
 const { useAsync } = require('../core');
-const { CreateLead, UpdateLead, DeleteLead, GetAllLeads, GetSingleLead, CreateLpo, UpdateLpo, DeleteLpo, GetAllLpos, GetSingleLpo } = require('../controller/controller.customer');
+const { CreateLead, UpdateLead, DeleteLead, GetAllLeads, GetSingleLead, CreateLpo, UpdateLpo, DeleteLpo, GetAllLpos, GetSingleLpo, GetAllInvoices, GetSingleInvoice, DeleteInvoice } = require('../controller/controller.customer');
 const { CreateSupplier, UpdateSupplier, DeleteSupplier, GetAllSuppliers, GetSingleSupplier, CreateProduct, UpdateProduct, DeleteProduct, GetAllProducts, GetSingleProduct, CreateRestock, UpdateRestock, DeleteRestock, GetAllRestocks, GetSingleRestock } = require('../controller/controller.product');
 
 
@@ -75,6 +75,12 @@ router.put('/restock/edit/:id', useAsync(authMiddleware), useAsync(roleMiddlewar
 router.delete('/restock/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteRestock );
 router.get('/restocks', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllRestocks );
 router.get('/restock/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleRestock );
+
+//INVOICE
+router.delete('/invoice/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteInvoice );
+router.get('/invoices', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllInvoices );
+router.get('/invoice/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleInvoice );
+router.put('/invoice/status/update', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), changeInvoiceStatus );
 
 /**
  * Export lastly

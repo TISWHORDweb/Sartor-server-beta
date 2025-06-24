@@ -4,6 +4,7 @@ const { useAsync, utils, errorHandle, } = require('../core');
 const Joi = require("joi");
 const ModelTask = require("../models/model.task");
 const ModelTaskComment = require("../models/model.taskComment");
+const ModelInvoice = require("../models/model.invoice");
 
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -272,6 +273,25 @@ exports.taskComments = useAsync(async (req, res) => {
             .populate('user').populate('employee')
 
         res.json(utils.JParser('Task comment fetch successfully', !!task, { task, comments }));
+
+    } catch (e) {
+        throw new errorHandle(e.message, 400)
+    }
+})
+
+exports.changeInvoiceStatus = useAsync(async (req, res) => {
+
+    try {
+
+        const invoiceID = req.body.id
+        const status = req.body.status
+
+        if (!invoiceID) return res.status(402).json(utils.JParser('provide the tasks id', false, []));
+
+        await ModelInvoice.updateOne({ _id: invoiceID }, { status }).then(async () => {
+            const invoice = await ModelInvoice.find({ _id: invoiceID });
+            return res.json(utils.JParser('Status changed update Successfully', !!invoice, invoice));
+        })
 
     } catch (e) {
         throw new errorHandle(e.message, 400)
