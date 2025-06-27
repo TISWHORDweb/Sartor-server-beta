@@ -102,7 +102,7 @@ exports.UserLogin = useAsync(async (req, res) => {
                 const lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
 
                 await ModelUser.updateOne({ _id: user._id }, { $set: { token: token, lastLogin: lastLogin } }).then(() => {
-                    EmailNote(email, name, body, subject)
+                    // EmailNote(email, name, body, subject)
                     user.token = token
                     return res.json(utils.JParser('logged in successfuly', true, user));
                 })
@@ -186,7 +186,7 @@ exports.EmployeeLogin = useAsync(async (req, res) => {
                 const lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
 
                 await ModelEmployee.updateOne({ _id: Employee._id }, { $set: { token: token, lastLogin: lastLogin } }).then(() => {
-                    EmailNote(email, name, body, subject)
+                    // EmailNote(email, name, body, subject)
                     Employee.token = token
                     return res.json(utils.JParser('logged in successfuly', true, Employee));
                 })
