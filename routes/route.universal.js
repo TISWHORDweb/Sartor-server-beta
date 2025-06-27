@@ -6,13 +6,13 @@ const {authMiddleware, roleMiddleware} = require('../middleware/middleware.prote
 const express = require('express');
 const router = express.Router();
 const CoreError = require('../core/core.error');
-const { getTasks, singleTask, taskComment, singleTaskComment, taskComments, changeTaskStatus, tasksByStatus, changeInvoiceStatus } = require('../controller/controller.task');
+const { getTasks, singleTask, taskComment, singleTaskComment, taskComments, changeTaskStatus, tasksByStatus } = require('../controller/controller.task');
 const { getUser, deleteUser, singleUser, editUser, allUser, createUser } = require('../controller/controller.user');
 // const { product, singleProduct, allProduct, deleteProduct, editProduct, getAdminProduct, productCategory, singleProductCategory, editProductCategory, allProductCategory, deleteProductCategory, getProductsByCategory } = require('../controller/controller.product');
 const { deleteTasks, CreateTask, editTask } = require('../controller/controller.task');
 const { useAsync } = require('../core');
-const { CreateLead, UpdateLead, DeleteLead, GetAllLeads, GetSingleLead, CreateLpo, UpdateLpo, DeleteLpo, GetAllLpos, GetSingleLpo, GetAllInvoices, GetSingleInvoice, DeleteInvoice } = require('../controller/controller.customer');
-const { CreateSupplier, UpdateSupplier, DeleteSupplier, GetAllSuppliers, GetSingleSupplier, CreateProduct, UpdateProduct, DeleteProduct, GetAllProducts, GetSingleProduct, CreateRestock, UpdateRestock, DeleteRestock, GetAllRestocks, GetSingleRestock } = require('../controller/controller.product');
+const { CreateLead, UpdateLead, DeleteLead, GetAllLeads, GetSingleLead, CreateLpo, UpdateLpo, DeleteLpo, GetAllLpos, GetSingleLpo, GetAllInvoices, GetSingleInvoice, DeleteInvoice, changeInvoiceStatus, updateLeadStatus } = require('../controller/controller.customer');
+const { CreateSupplier, UpdateSupplier, DeleteSupplier, GetAllSuppliers, GetSingleSupplier, CreateProduct, UpdateProduct, DeleteProduct, GetAllProducts, GetSingleProduct, CreateRestock, UpdateRestock, DeleteRestock, GetAllRestocks, GetSingleRestock, CreateBatch, GetAllBatches, GetSingleBatch, UpdateBatch, DeleteBatch } = require('../controller/controller.product');
 
 
 /**
@@ -47,6 +47,7 @@ router.put('/lead/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware([
 router.delete('/lead/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteLead );
 router.get('/leads', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllLeads );
 router.get('/lead/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleLead );
+router.put('/lead/status/update', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), updateLeadStatus );
 
 //LPO
 router.post('/lpo', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateLpo );
@@ -81,6 +82,13 @@ router.delete('/invoice/delete/:id', useAsync(authMiddleware), useAsync(roleMidd
 router.get('/invoices', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllInvoices );
 router.get('/invoice/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleInvoice );
 router.put('/invoice/status/update', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), changeInvoiceStatus );
+
+//BATCH
+router.post('/batch', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateBatch );
+router.put('/batch/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdateBatch );
+router.delete('/batch/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteBatch );
+router.get('/batchs', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllBatches );
+router.get('/batch/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleBatch );
 
 /**
  * Export lastly

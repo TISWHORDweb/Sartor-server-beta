@@ -1,43 +1,17 @@
 const mongoose = require('mongoose')
 
 const customerSchema = new mongoose.Schema({
-    name: {
-        type: String,
-    },
-    address: {
-        type: String,
-    },
-    email: {
-        type: String,
-    },
-    phone: {
-        type: String,
-    },
-    state: {
-        type: String,
-    },
-    type: {
-        type: String,
-        enum: ["Pharmacy  ", "Clinic"], 
-    },
-    image: {
-        type: String,
-    },
-    dealSize: {
-        type: String,
-    },
-    note: {
-        type: String,
-    },
-    stores: {
-        type: Number,
+    lead: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-lead',
+        required: true
     },
     customerId: {
         type: String,
     },
     status: {
         type: String,
-        enum: ["Active", "In-active"], 
+        enum: ["Active", "In-active"],
         default: "Active"
     },
     creationDateTime: { type: Number, default: () => Date.now() },

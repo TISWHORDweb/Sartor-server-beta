@@ -79,17 +79,32 @@ exports.changeTaskStatus = useAsync(async (req, res) => {
 })
 
 exports.getTasks = useAsync(async (req, res) => {
-
     try {
+        const userId = req.userId;
+        const user = req.user;
+        
+        // Pagination parameters
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
 
-        const userId = req.userId
-        const user = req.user
+        // Base query conditions
+        const queryConditions = user.userRole === "admin" ? {} : { user: userId };
+        
+        // Get paginated tasks
+        const tasks = await ModelTask.find(queryConditions)
+            .populate('user')
+            .sort({ createdAt: -1 }) // Sort by newest first
+            .skip(skip)
+            .limit(limit)
+            .lean();
 
-        const tasks = user.userRole === "admin" ? await ModelTask.find().populate('user')
-            : await ModelTask.find({ user: userId }).populate('user')
+        // Get total count for pagination info
+        const totalTasks = await ModelTask.countDocuments(queryConditions);
+        const totalPages = Math.ceil(totalTasks / limit);
 
-
-        // Calculate status counts
+        // Calculate status counts (from all tasks, not just paginated ones)
+        const allTasks = await ModelTask.find(queryConditions).lean();
         const statusCounts = {
             "Pending": 0,
             "Due": 0,
@@ -102,26 +117,34 @@ exports.getTasks = useAsync(async (req, res) => {
             "Confirmed": 0
         };
 
-        tasks.forEach(task => {
+        allTasks.forEach(task => {
             if (task.status && statusCounts.hasOwnProperty(task.status)) {
                 statusCounts[task.status]++;
             }
         });
 
-        // Prepare response with both tasks and analytics
+        // Prepare response with both paginated tasks and analytics
         const response = {
             tasks: tasks,
             analytics: {
                 statusCounts: statusCounts,
-                totalTasks: tasks.length
+                totalTasks: totalTasks
+            },
+            pagination: {
+                currentPage: page,
+                totalPages: totalPages,
+                totalTasks: totalTasks,
+                tasksPerPage: limit,
+                hasNextPage: page < totalPages,
+                hasPreviousPage: page > 1
             }
         };
 
-        return res.json(utils.JParser('Task fetch successfully', true, response));
+        return res.json(utils.JParser('Tasks fetched successfully', true, response));
     } catch (e) {
-        throw new errorHandle(e.message, 400)
+        throw new errorHandle(e.message, 400);
     }
-})
+});
 
 exports.singleTask = useAsync(async (req, res) => {
 
@@ -279,21 +302,3 @@ exports.taskComments = useAsync(async (req, res) => {
     }
 })
 
-exports.changeInvoiceStatus = useAsync(async (req, res) => {
-
-    try {
-
-        const invoiceID = req.body.id
-        const status = req.body.status
-
-        if (!invoiceID) return res.status(402).json(utils.JParser('provide the tasks id', false, []));
-
-        await ModelInvoice.updateOne({ _id: invoiceID }, { status }).then(async () => {
-            const invoice = await ModelInvoice.find({ _id: invoiceID });
-            return res.json(utils.JParser('Status changed update Successfully', !!invoice, invoice));
-        })
-
-    } catch (e) {
-        throw new errorHandle(e.message, 400)
-    }
-})

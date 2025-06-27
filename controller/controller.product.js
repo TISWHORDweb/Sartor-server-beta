@@ -6,6 +6,7 @@ const Joi = require("joi");
 const ModelRestock = require("../models/model.restock");
 const ModelSupplier = require("../models/model.supplier");
 const { genID } = require("../core/core.utils");
+const ModelBatch = require("../models/model.batch");
 
 
 exports.CreateProduct = useAsync(async (req, res) => {
@@ -32,7 +33,7 @@ exports.CreateProduct = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Product created successfully', !!product, product));
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -66,7 +67,7 @@ exports.UpdateProduct = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Product updated successfully', !!updatedProduct, updatedProduct));
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -82,7 +83,7 @@ exports.DeleteProduct = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Product deleted successfully', !!deletedProduct, deletedProduct));
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -135,7 +136,7 @@ exports.GetAllProducts = useAsync(async (req, res) => {
 
         return res.json(response);
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -167,7 +168,7 @@ exports.GetSingleProduct = useAsync(async (req, res) => {
         return res.json(utils.JParser('Product fetched successfully', true, productWithRestocks));
 
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -199,7 +200,7 @@ exports.CreateRestock = useAsync(async (req, res) => {
         ));
 
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -223,7 +224,7 @@ exports.UpdateRestock = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Restock updated successfully', !!updatedRestock, updatedRestock));
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -238,7 +239,7 @@ exports.DeleteRestock = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Restock deleted successfully', !!deletedRestock, deletedRestock));
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -271,7 +272,7 @@ exports.GetAllRestocks = useAsync(async (req, res) => {
 
         return res.json(response);
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -289,7 +290,7 @@ exports.GetSingleRestock = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Restock fetched successfully', true, restock));
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -322,7 +323,7 @@ exports.CreateSupplier = useAsync(async (req, res) => {
             return res.json(utils.JParser('Supplier created successfully', !!supplier, supplier));
         }
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -352,7 +353,7 @@ exports.UpdateSupplier = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Supplier updated successfully', !!updatedSupplier, updatedSupplier));
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -367,7 +368,7 @@ exports.DeleteSupplier = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Supplier deleted successfully', !!deletedSupplier, deletedSupplier));
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -427,7 +428,7 @@ exports.GetAllSuppliers = useAsync(async (req, res) => {
 
         return res.json(response);
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -461,6 +462,122 @@ exports.GetSingleSupplier = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Supplier fetched successfully', true, supplierWithDetails));
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
+    }
+});
+
+//////////////////////////////////////////////////////////////////////////////////////
+////BATCH ROUTES
+//////////////////////////////////////////////////////////////////////////////////////
+
+exports.CreateBatch = useAsync(async (req, res) => {
+    try {
+        const schema = Joi.object({
+            quantity: Joi.number().min(1).required(),
+            manufacturingDate: Joi.number().required(),
+            expiryDate: Joi.number().allow(null),
+            supplier: Joi.string().allow(null),
+            costPrice: Joi.number().min(0).allow(null),
+            sellingPrice: Joi.number().min(0).allow(null),
+            notes: Joi.string().allow('')
+        });
+
+        const validator = await schema.validateAsync(req.body);
+        validator.batchNumber = await genID(6)
+        const batch = await ModelBatch.create(validator);
+        
+        return res.json(utils.JParser('Batch created successfully', !!batch, batch));
+    } catch (e) {
+        throw new errorHandle(e.message, 400);
+    }
+});
+
+// Get All Batches
+exports.GetAllBatches = useAsync(async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+
+        const query = ModelBatch.find()
+            .populate('supplier')
+            .lean();
+
+        if (limit !== null) query.skip(skip).limit(limit);
+        const batches = await query.exec();
+
+        const response = utils.JParser('Batches fetched successfully', !!batches, { data: batches });
+
+        if (limit !== null) {
+            const totalBatches = await ModelBatch.countDocuments();
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalBatches / limit),
+                totalBatches,
+                limit
+            };
+        }
+
+        return res.json(response);
+    } catch (e) {
+       throw new errorHandle(e.message, 500);
+    }
+});
+
+// Get Single Batch
+exports.GetSingleBatch = useAsync(async (req, res) => {
+    try {
+        const batch = await ModelBatch.findById(req.params.id)
+            .populate('supplier')
+            .lean();
+
+        if (!batch) throw new errorHandle('Batch not found', 404);
+
+        return res.json(utils.JParser('Batch fetched successfully', true, batch));
+    } catch (e) {
+        throw new errorHandle(e.message, 400);
+    }
+});
+
+// Update Batch
+exports.UpdateBatch = useAsync(async (req, res) => {
+    try {
+        const schema = Joi.object({
+            batchNumber: Joi.string(),
+            quantity: Joi.number().min(1),
+            manufacturingDate: Joi.number(),
+            expiryDate: Joi.number().allow(null),
+            supplier: Joi.string().allow(null),
+            costPrice: Joi.number().min(0).allow(null),
+            sellingPrice: Joi.number().min(0).allow(null),
+            notes: Joi.string().allow(''),
+            status: Joi.string().valid('active', 'expired', 'sold-out', 'recalled')
+        });
+
+        const validator = await schema.validateAsync(req.body);
+        const batch = await ModelBatch.findByIdAndUpdate(
+            req.params.id,
+            { ...validator, updated_at: Date.now() },
+            { new: true }
+        ).lean();
+
+        if (!batch) throw new errorHandle('Batch not found', 404);
+
+        return res.json(utils.JParser('Batch updated successfully', true, batch));
+    } catch (e) {
+        throw new errorHandle(e.message, 400);
+    }
+});
+
+// Delete Batch
+exports.DeleteBatch = useAsync(async (req, res) => {
+    try {
+        const batch = await ModelBatch.findByIdAndDelete(req.params.id).lean();
+
+        if (!batch) throw new errorHandle('Batch not found', 404);
+
+        return res.json(utils.JParser('Batch deleted successfully', true, batch));
+    } catch (e) {
+        throw new errorHandle(e.message, 400);
     }
 });

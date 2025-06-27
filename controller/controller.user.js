@@ -99,7 +99,7 @@ exports.createUser= useAsync(async (req, res) => {
 
         const validates = await ModelUser.findOne({ email: req.body.email })
         if (validates) {
-            return res.json(utils.JParser('There is another Sales agent with this email', false, []));
+            return res.json(utils.JParser('There is another user with this email', false, []));
         } else {
 
             let user = await new ModelUser(req.body)

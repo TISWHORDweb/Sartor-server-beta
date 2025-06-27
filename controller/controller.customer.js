@@ -10,6 +10,7 @@ const { genID } = require("../core/core.utils");
 const ModelLpo = require("../models/model.lpo");
 const ModelLpoProduct = require("../models/model.lpoProduct");
 const ModelInvoice = require("../models/model.invoice");
+const ModelCustomer = require("../models/model.customer");
 
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -42,7 +43,7 @@ exports.CreateLpo = useAsync(async (req, res) => {
         return res.json(utils.JParser('LPO created successfully', !!lpo, { lpo, products: createdProducts || [], invoice }));
 
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -65,7 +66,7 @@ exports.UpdateLpo = useAsync(async (req, res) => {
         return res.json(utils.JParser('LPO updated successfully', !!updatedLpo, updatedLpo));
 
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -84,7 +85,7 @@ exports.DeleteLpo = useAsync(async (req, res) => {
         return res.json(utils.JParser('LPO deleted successfully', !!deletedLpo, deletedLpo));
 
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -134,7 +135,7 @@ exports.GetAllLpos = useAsync(async (req, res) => {
         return res.json(response);
 
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -156,7 +157,7 @@ exports.GetSingleLpo = useAsync(async (req, res) => {
         }));
 
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -188,6 +189,11 @@ exports.CreateLead = useAsync(async (req, res) => {
         const validator = await schema.validateAsync(req.body);
         validator.userId = userId
 
+        const existingLead = await ModelLead.findOne({ email: validator.email })
+        if (existingLead) {
+            return res.json(utils.JParser('Sorry theres another lead register with this email, chabge it and try again ', false, []))
+        }
+
         let createdContacts;
         const lead = await ModelLead.create(validator);
         if (validator.contact && validator.contact.length > 0) {
@@ -205,7 +211,7 @@ exports.CreateLead = useAsync(async (req, res) => {
         }));
 
     } catch (e) {
-        throw new Error(e.message); // Note: It should be "Error" not "errorHandle" unless that's your custom class
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -216,7 +222,6 @@ exports.UpdateLead = useAsync(async (req, res) => {
         const schema = Joi.object({
             name: Joi.string().min(3).optional(),
             address: Joi.string().min(3).optional(),
-            email: Joi.string().min(3).optional(),
             phone: Joi.string().min(3).optional(),
             state: Joi.string().min(3).optional(),
             type: Joi.string().min(3).optional(),
@@ -235,7 +240,7 @@ exports.UpdateLead = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Lead updated successfully', !!updatedLead, updatedLead));
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -253,7 +258,7 @@ exports.DeleteLead = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Lead deleted successfully', !!deletedLead, []));
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -301,7 +306,7 @@ exports.GetAllLeads = useAsync(async (req, res) => {
         return res.json(response);
 
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -325,11 +330,70 @@ exports.GetSingleLead = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Lead fetched successfully', !!leadWithContacts, leadWithContacts));
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
+exports.updateLeadStatus = useAsync(async (req, res) => {
+    try {
+        const { status, id } = req.body;
+        const userId = req.userId; 
 
+        if (!status) {
+            throw new errorHandle('Status is required', 400);
+        }
+
+        const lead = await ModelLead.findById(id);
+        if (!lead) {
+            throw new errorHandle('Lead not found', 404);
+        }
+
+        const updatedLead = await ModelLead.findByIdAndUpdate(
+            id,
+            { 
+                status,
+                updated_at: Date.now() 
+            },
+            { new: true }
+        );
+
+        if (status === "Qualified") {
+            // Check if this lead already exists as a customer
+            const existingCustomer = await ModelCustomer.findOne({ lead: id });
+            
+            if (!existingCustomer) {
+                // Generate customer ID (you can customize this logic)
+                const customerId = await genID(3)
+                
+                // Create new customer
+                const newCustomer = await ModelCustomer.create({
+                    lead: id,
+                    customerId,
+                    status: "Active"
+                });
+
+            }
+        }
+
+        // Prepare response
+        let response = {
+            lead: updatedLead,
+            message: 'Lead status updated successfully'
+        };
+
+        // Add customer info if qualified
+        if (status === "Qualified") {
+            const customer = await ModelCustomer.findOne({ lead: id });
+            response.customer = customer;
+            response.message += ' and customer created';
+        }
+
+        return res.json(utils.JParser(response.message, true, response));
+
+    } catch (e) {
+        throw new errorHandle(e.message, 400);
+    }
+});
 
 //////////////////////////////////////////////////////////////////////////////////////
 ////INVOICE ROUTES
@@ -409,7 +473,7 @@ exports.GetAllInvoices = useAsync(async (req, res) => {
         return res.json(response);
 
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -424,7 +488,7 @@ exports.GetSingleInvoice = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Invoice fetched successfully', !!invoice, invoice));
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
 
@@ -439,6 +503,31 @@ exports.DeleteInvoice = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Invoice deleted successfully', !!deletedInvoice, []));
     } catch (e) {
-        throw new Error(e.message);
+       throw new errorHandle(e.message, 500);
     }
 });
+
+exports.changeInvoiceStatus = useAsync(async (req, res) => {
+
+    try {
+
+        const invoiceID = req.body.id
+        const status = req.body.status
+
+        if (!invoiceID) return res.status(402).json(utils.JParser('provide the tasks id', false, []));
+
+        await ModelInvoice.updateOne({ _id: invoiceID }, { status }).then(async () => {
+            const invoice = await ModelInvoice.find({ _id: invoiceID });
+            return res.json(utils.JParser('Status changed update Successfully', !!invoice, invoice));
+        })
+
+    } catch (e) {
+        throw new errorHandle(e.message, 400)
+    }
+})
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+////CUSTOMER ROUTES
+//////////////////////////////////////////////////////////////////////////////////////
