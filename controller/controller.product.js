@@ -13,15 +13,14 @@ exports.CreateProduct = useAsync(async (req, res) => {
     try {
         const schema = Joi.object({
             productName: Joi.string().required(),
-            supplier: Joi.string().required(),
-            // batchNumber: Joi.string().optional(),
+            batch: Joi.string().required(),
             barcodeNumber: Joi.string().optional(),
             quantity: Joi.string().required(),
-            unit: Joi.string().required(),
+            unitPrice: Joi.required(),
             buyingPrice: Joi.string().required(),
-            expiryDate: Joi.string().optional(),
+            expiryDate: Joi.string().required(),
             description: Joi.string().optional(),
-            sellingPrice: Joi.string().required(),
+            sellingPrice: Joi.string().optional(),
             productImage: Joi.string().optional()
         });
 
@@ -95,7 +94,7 @@ exports.GetAllProducts = useAsync(async (req, res) => {
         const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
 
         const query = ModelProduct.find()
-            .populate('supplier')
+            .populate('batch')
             .lean();
 
         if (limit !== null) query.skip(skip).limit(limit);
@@ -146,7 +145,7 @@ exports.GetSingleProduct = useAsync(async (req, res) => {
 
         // 1. Fetch the product (with supplier info)
         const product = await ModelProduct.findById(id)
-            .populate('supplier')
+            .populate('batch')
             .lean();
 
         if (!product) {

@@ -4,9 +4,9 @@ const productSchema = new mongoose.Schema({
     productName: {
         type: String,
     },
-    supplier: {
+    batch: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'model-supplier',
+        ref: 'model-batch',
         required: true
     },
     batchNumber: {
@@ -18,8 +18,9 @@ const productSchema = new mongoose.Schema({
     quantity: {
         type: String,
     },
-    unit: {
-        type: String,
+    unitPrice: {
+        type: Number,
+        default: 0
     },
     buyingPrice: {
         type: String,
@@ -38,7 +39,7 @@ const productSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ["In-Stock  ", "Out of Stock"], 
+        enum: ["In-Stock  ", "Out of Stock"],
     },
     batchId: { type: String },
     creationDateTime: { type: Number, default: () => Date.now() },

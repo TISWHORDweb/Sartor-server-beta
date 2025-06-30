@@ -26,6 +26,8 @@ exports.CreateLpo = useAsync(async (req, res) => {
 
         const validator = await schema.validateAsync(req.body);
 
+        validator.lpoId = await genID(7)
+
         const lpo = await ModelLpo.create(validator);
 
         let createdProducts;
@@ -96,31 +98,50 @@ exports.GetAllLpos = useAsync(async (req, res) => {
         const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
         const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
 
-        // Fetch LPOs (with or without pagination)
         const query = ModelLpo.find().lean().populate('lead');
         if (limit !== null) {
             query.skip(skip).limit(limit);
         }
         const lpos = await query.exec();
 
-        // Fetch associated products in a single query
         const lpoIds = lpos.map(lpo => lpo._id);
-        const products = await ModelLpoProduct.find({ lpo: { $in: lpoIds } });
+        const products = await ModelLpoProduct.find({ lpo: { $in: lpoIds } }).populate('product');
 
-        // Group products by LPO ID
         const productsByLpoId = products.reduce((acc, product) => {
+            if (!product.lpo) return acc;
             if (!acc[product.lpo]) acc[product.lpo] = [];
-            acc[product.lpo].push(product);
+            
+            const quantity = parseFloat(product.quantity) || 0;
+            const unitPrice = (product.product && !isNaN(parseFloat(product.product.unitPrice))) 
+                ? parseFloat(product.product.unitPrice) 
+                : 0;
+
+            const productAmount = unitPrice * quantity;
+            
+            acc[product.lpo].push({
+                ...product.toObject(),
+                amount: productAmount,
+                quantity: quantity
+            });
+            
             return acc;
         }, {});
 
-        // Attach products to LPOs
-        const lposWithProducts = lpos.map(lpo => ({
-            ...lpo,
-            products: productsByLpoId[lpo._id] || []
-        }));
+        const lposWithProducts = lpos.map(lpo => {
+            const lpoProducts = productsByLpoId[lpo._id] || [];
+            
+            const totalAmount = lpoProducts.reduce((sum, product) => {
+                return sum + (product.amount || 0);
+            }, 0);
 
-        const response = utils.JParser('LPOs fetched successfully', true, { lpos: lposWithProducts })
+            return {
+                ...lpo,
+                products: lpoProducts,
+                totalAmount: parseFloat(totalAmount.toFixed(2))
+            };
+        });
+
+        const response = utils.JParser('LPOs fetched successfully', true, { lpos: lposWithProducts });
 
         if (limit !== null) {
             const totalLpos = await ModelLpo.countDocuments();
@@ -139,25 +160,42 @@ exports.GetAllLpos = useAsync(async (req, res) => {
     }
 });
 
+
 exports.GetSingleLpo = useAsync(async (req, res) => {
     try {
         const { id } = req.params;
+        
         const lpo = await ModelLpo.findById(id).lean().populate('lead');
 
         if (!lpo) {
             return res.status(404).json(utils.JParser('LPO not found', false, null));
         }
 
-        // Fetch associated products
-        const products = await ModelLpoProduct.find({ lpo: id });
+        const products = await ModelLpoProduct.find({ lpo: id }).populate('product');
+
+        const processedProducts = products.map(product => {
+            const quantity = parseFloat(product.quantity) || 0;
+            const unitPrice = (product.product?.unitPrice) ? parseFloat(product.product.unitPrice) : 0;
+            const amount = unitPrice * quantity;
+
+            return {
+                ...product.toObject(),
+                quantity,
+                unitPrice,
+                amount: parseFloat(amount.toFixed(2))
+            };
+        });
+
+        const totalAmount = processedProducts.reduce((sum, product) => sum + product.amount, 0);
 
         return res.json(utils.JParser('LPO fetched successfully', true, {
             ...lpo,
-            products
+            products: processedProducts,
+            totalAmount: parseFloat(totalAmount.toFixed(2))
         }));
 
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 

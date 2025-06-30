@@ -3,6 +3,7 @@ const ModelCustomer = require("../models/model.customer");
 const ModelInvoice = require("../models/model.invoice");
 const ModelProduct = require("../models/model.LabelGenerator");
 const ModelLead = require("../models/model.lead");
+const ModelLpo = require("../models/model.lpo");
 const ModelUser = require("../models/model.user");
 
 
@@ -50,8 +51,6 @@ exports.genID = async (id) => {
 
     if (id === 1) {
         lastData = await ModelUser.findOne().sort({ userId: -1 }).limit(1);
-    } else if (id === 2) {
-        lastData = await ModelProduct.findOne().sort({ batchId: -1 }).limit(1);
     } else if (id === 3) {
         lastData = await ModelCustomer.findOne().sort({ customerId: -1 }).limit(1);
     } else if (id === 4) {
@@ -60,17 +59,14 @@ exports.genID = async (id) => {
         lastData = await ModelInvoice.findOne().sort({ invoiceId: -1 }).limit(1);
     } else if (id === 6) {
         lastData = await ModelBatch.findOne().sort({ batchNumber: -1 }).limit(1);
+    } else if (id === 7) {
+        lastData = await ModelLpo.findOne().sort({ lpoId: -1 }).limit(1);
     }
 
     let lastNumber = 0;
     if (id === 1) {
         if (lastData && lastData.userId) {
             const parts = lastData.userId.split('-');
-            lastNumber = parseInt(parts[1]) || 0;
-        }
-    } else if (id === 2) {
-        if (lastData && lastData.batchId) {
-            const parts = lastData.batchId.split('-');
             lastNumber = parseInt(parts[1]) || 0;
         }
     } else if (id === 3) {
@@ -93,10 +89,15 @@ exports.genID = async (id) => {
             const parts = lastData.batchNumber.split('-');
             lastNumber = parseInt(parts[1]) || 0;
         }
+    } else if (id === 7) {
+        if (lastData && lastData.lpoId) {
+            const parts = lastData.lpoId.split('-');
+            lastNumber = parseInt(parts[1]) || 0;
+        }
     }
 
     // 3. Generate the next ID
-    const prefix = id === 1 || id === 4 ? "SMO" : id === 2 || id === 6 ? "BCH" : id === 3 ? "CUS" : "INV"
+    const prefix = id === 1 || id === 4 ? "SMO" : id === 6 ? "BCH" : id === 3 ? "CUS" : id === 5 ? "INV" : "LPO"
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
     const month = (now.getMonth() + 1).toString().padStart(2, '0');

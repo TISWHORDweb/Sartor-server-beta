@@ -12,7 +12,8 @@ const lpoSchema = new mongoose.Schema({
         required: true
     },
     quantity: {
-        type: String,
+        type: Number,
+        default: 1
     },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }
