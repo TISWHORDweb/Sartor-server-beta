@@ -32,7 +32,7 @@ exports.CreateProduct = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Product created successfully', !!product, product));
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -66,7 +66,7 @@ exports.UpdateProduct = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Product updated successfully', !!updatedProduct, updatedProduct));
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -82,7 +82,7 @@ exports.DeleteProduct = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Product deleted successfully', !!deletedProduct, deletedProduct));
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -94,7 +94,13 @@ exports.GetAllProducts = useAsync(async (req, res) => {
         const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
 
         const query = ModelProduct.find()
-            .populate('batch')
+            .populate({
+                path: 'batch',
+                populate: {
+                    path: 'supplier',
+                    model: 'model-supplier'
+                }
+            })
             .lean();
 
         if (limit !== null) query.skip(skip).limit(limit);
@@ -135,7 +141,7 @@ exports.GetAllProducts = useAsync(async (req, res) => {
 
         return res.json(response);
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -145,8 +151,13 @@ exports.GetSingleProduct = useAsync(async (req, res) => {
 
         // 1. Fetch the product (with supplier info)
         const product = await ModelProduct.findById(id)
-            .populate('batch')
-            .lean();
+            .populate({
+                path: 'batch',
+                populate: {
+                    path: 'supplier',
+                    model: 'model-supplier'
+                }
+            }) .lean();
 
         if (!product) {
             return res.status(404).json(utils.JParser('Product not found', false, null));
@@ -167,7 +178,7 @@ exports.GetSingleProduct = useAsync(async (req, res) => {
         return res.json(utils.JParser('Product fetched successfully', true, productWithRestocks));
 
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -199,7 +210,7 @@ exports.CreateRestock = useAsync(async (req, res) => {
         ));
 
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -223,7 +234,7 @@ exports.UpdateRestock = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Restock updated successfully', !!updatedRestock, updatedRestock));
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -238,7 +249,7 @@ exports.DeleteRestock = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Restock deleted successfully', !!deletedRestock, deletedRestock));
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -271,7 +282,7 @@ exports.GetAllRestocks = useAsync(async (req, res) => {
 
         return res.json(response);
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -289,7 +300,7 @@ exports.GetSingleRestock = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Restock fetched successfully', true, restock));
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -322,7 +333,7 @@ exports.CreateSupplier = useAsync(async (req, res) => {
             return res.json(utils.JParser('Supplier created successfully', !!supplier, supplier));
         }
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -352,7 +363,7 @@ exports.UpdateSupplier = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Supplier updated successfully', !!updatedSupplier, updatedSupplier));
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -367,7 +378,7 @@ exports.DeleteSupplier = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Supplier deleted successfully', !!deletedSupplier, deletedSupplier));
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -427,7 +438,7 @@ exports.GetAllSuppliers = useAsync(async (req, res) => {
 
         return res.json(response);
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -461,7 +472,7 @@ exports.GetSingleSupplier = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Supplier fetched successfully', true, supplierWithDetails));
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -484,7 +495,7 @@ exports.CreateBatch = useAsync(async (req, res) => {
         const validator = await schema.validateAsync(req.body);
         validator.batchNumber = await genID(6)
         const batch = await ModelBatch.create(validator);
-        
+
         return res.json(utils.JParser('Batch created successfully', !!batch, batch));
     } catch (e) {
         throw new errorHandle(e.message, 400);
@@ -519,7 +530,7 @@ exports.GetAllBatches = useAsync(async (req, res) => {
 
         return res.json(response);
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
