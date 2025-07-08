@@ -4,25 +4,36 @@ const batchSchema = new mongoose.Schema({
     batchNumber: {
         type: String,
         required: true,
-        unique: true
+    },
+    manufacturer: {
+        type: String
+    },
+    invoiceNumber: {
+        type: String
+    },
+    image: {
+        type: String
+    },
+    receipt: {
+        type: String
     },
     quantity: {
         type: Number,
         required: true,
         min: 1
     },
-    manufacturingDate: {
-        type: Number, 
-        required: true
-    },
     expiryDate: {
-        type: Number 
+        type: Number
     },
     supplier: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'model-supplier'
     },
-    costPrice: {
+    product: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-product'
+    },
+    supplyPrice: {
         type: Number,
         min: 0
     },

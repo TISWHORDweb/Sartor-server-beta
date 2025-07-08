@@ -13,14 +13,9 @@ exports.CreateProduct = useAsync(async (req, res) => {
     try {
         const schema = Joi.object({
             productName: Joi.string().required(),
-            batch: Joi.string().required(),
             barcodeNumber: Joi.string().optional(),
-            quantity: Joi.string().required(),
-            unitPrice: Joi.required(),
-            buyingPrice: Joi.string().required(),
-            expiryDate: Joi.string().required(),
+            manufacturer: Joi.string().optional(),
             description: Joi.string().optional(),
-            sellingPrice: Joi.string().optional(),
             productImage: Joi.string().optional()
         });
 
@@ -42,15 +37,9 @@ exports.UpdateProduct = useAsync(async (req, res) => {
         const { id } = req.params;
         const schema = Joi.object({
             productName: Joi.string().optional(),
-            supplier: Joi.string().optional(),
-            batchNumber: Joi.string().optional(),
+            manufacturer: Joi.string().optional(),
             barcodeNumber: Joi.string().optional(),
-            quantity: Joi.string().optional(),
-            unit: Joi.string().optional(),
-            buyingPrice: Joi.string().optional(),
-            expiryDate: Joi.string().optional(),
             description: Joi.string().optional(),
-            sellingPrice: Joi.string().optional(),
             productImage: Joi.string().optional(),
             status: Joi.string().optional()
         });
@@ -93,40 +82,71 @@ exports.GetAllProducts = useAsync(async (req, res) => {
         const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
         const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
 
-        const query = ModelProduct.find()
-            .populate({
-                path: 'batch',
-                populate: {
-                    path: 'supplier',
-                    model: 'model-supplier'
-                }
-            })
-            .lean();
-
+        // Get products without populate
+        const query = ModelProduct.find().lean();
         if (limit !== null) query.skip(skip).limit(limit);
         const products = await query.exec();
 
+        // Get all product IDs
         const productIds = products.map(p => p._id);
+
+        // Get batches for these products with supplier information
+        const batches = await ModelBatch.find({ product: { $in: productIds } })
+            .lean();
+
+        // Get supplier IDs from batches
+        const supplierIds = [...new Set(batches.map(b => b.supplier).filter(Boolean))];
+        
+        // Get all suppliers in one query
+        const suppliers = await ModelSupplier.find({ _id: { $in: supplierIds } })
+            .lean()
+            .then(supps => supps.reduce((acc, s) => {
+                acc[s._id.toString()] = s;
+                return acc;
+            }, {}));
+
+        // Get restock data
         const restocks = await ModelRestock.find({ product: { $in: productIds } })
             .sort({ creationDateTime: -1 })
             .lean();
 
+        // Organize data for efficient joining
+        const batchesByProduct = batches.reduce((acc, batch) => {
+            const productId = batch.product.toString();
+            if (!acc[productId]) acc[productId] = [];
+            
+            // Attach supplier info if exists
+            const batchWithSupplier = {
+                ...batch,
+                supplier: batch.supplier ? suppliers[batch.supplier.toString()] : null
+            };
+            
+            acc[productId].push(batchWithSupplier);
+            return acc;
+        }, {});
+
         const restocksByProduct = restocks.reduce((acc, restock) => {
-            if (!acc[restock.product]) acc[restock.product] = [];
-            acc[restock.product].push({
+            const productId = restock.product.toString();
+            if (!acc[productId]) acc[productId] = [];
+            acc[productId].push({
                 quantity: restock.quantity,
                 date: restock.creationDateTime
             });
             return acc;
         }, {});
 
-        const productsWithRestocks = products.map(product => ({
-            ...product,
-            restocks: (restocksByProduct[product._id] || []).slice(0, 5) // Last 5 restocks
-        }));
+        // Combine all data
+        const productsWithData = products.map(product => {
+            const productId = product._id.toString();
+            return {
+                ...product,
+                batches: batchesByProduct[productId] || [],
+                restocks: (restocksByProduct[productId] || []).slice(0, 5)
+            };
+        });
 
         const response = utils.JParser('Products fetched successfully', !!products,
-            { data: productsWithRestocks }
+            { data: productsWithData }
         );
 
         if (limit !== null) {
@@ -149,33 +169,47 @@ exports.GetSingleProduct = useAsync(async (req, res) => {
     try {
         const { id } = req.params;
 
-        // 1. Fetch the product (with supplier info)
-        const product = await ModelProduct.findById(id)
-            .populate({
-                path: 'batch',
-                populate: {
-                    path: 'supplier',
-                    model: 'model-supplier'
-                }
-            }) .lean();
+        // 1. Fetch the product
+        const product = await ModelProduct.findById(id).lean();
 
         if (!product) {
             return res.status(404).json(utils.JParser('Product not found', false, null));
         }
 
-        // 2. Fetch all restocks for this product
+        // 2. Fetch all batches for this product
+        const batches = await ModelBatch.find({ product: id }).lean();
+
+        // 3. Get all unique supplier IDs from batches
+        const supplierIds = [...new Set(batches.map(b => b.supplier).filter(Boolean))];
+
+        // 4. Fetch all suppliers in one query
+        const suppliers = await ModelSupplier.find({ _id: { $in: supplierIds } })
+            .lean()
+            .then(supps => supps.reduce((acc, s) => {
+                acc[s._id.toString()] = s;
+                return acc;
+            }, {}));
+
+        // 5. Attach supplier info to each batch
+        const batchesWithSuppliers = batches.map(batch => ({
+            ...batch,
+            supplier: batch.supplier ? suppliers[batch.supplier.toString()] : null
+        }));
+
+        // 6. Fetch all restocks for this product
         const restocks = await ModelRestock.find({ product: id })
             .sort({ creationDateTime: -1 }) // Newest first
             .select('quantity creationDateTime updated_at')
             .lean();
 
-        // 3. Attach restocks to the product
-        const productWithRestocks = {
+        // 7. Combine all data
+        const productWithData = {
             ...product,
-            restocks: restocks // Includes full restock history
+            batches: batchesWithSuppliers,
+            restocks: restocks
         };
 
-        return res.json(utils.JParser('Product fetched successfully', true, productWithRestocks));
+        return res.json(utils.JParser('Product fetched successfully', true, productWithData));
 
     } catch (e) {
         throw new errorHandle(e.message, 500);
@@ -483,20 +517,54 @@ exports.GetSingleSupplier = useAsync(async (req, res) => {
 exports.CreateBatch = useAsync(async (req, res) => {
     try {
         const schema = Joi.object({
-            quantity: Joi.number().min(1).required(),
-            manufacturingDate: Joi.number().required(),
-            expiryDate: Joi.number().allow(null),
-            supplier: Joi.string().allow(null),
-            costPrice: Joi.number().min(0).allow(null),
-            sellingPrice: Joi.number().min(0).allow(null),
-            notes: Joi.string().allow('')
+            manufacturer: Joi.string().required(),
+            product: Joi.string().required(),
+            invoiceNumber: Joi.string().required(),
+            supplier: Joi.string().required(),
+            image: Joi.string().allow(''),
+            receipt: Joi.string().allow(''),
+            batch: Joi.array().items(
+                Joi.object({
+                    quantity: Joi.number().min(1).required(),
+                    batchNumber: Joi.string().required(),
+                    expiryDate: Joi.number().required(),
+                    sellingPrice: Joi.number().min(0).allow(null),
+                    supplyPrice: Joi.number().min(0).allow(null)
+                })
+            ).min(1).required()
         });
 
         const validator = await schema.validateAsync(req.body);
-        validator.batchNumber = await genID(6)
-        const batch = await ModelBatch.create(validator);
+        
+        // Process each batch item
+        const batchPromises = validator.batch.map(async (batchItem) => {
 
-        return res.json(utils.JParser('Batch created successfully', !!batch, batch));
+             const batchNumber = batchItem.batchNumber
+
+             if (batchNumber) {
+                const existingBatch = await ModelBatch.findOne({ batchNumber });
+                if (existingBatch) {
+                    return res.status(400).json(utils.JParser(`Batch with batchNumber ${batchNumber} already exists`, false, []));
+                }
+            }
+
+            const batchData = {
+                ...batchItem,
+                manufacturer: validator.manufacturer,
+                product: validator.product,
+                invoiceNumber: validator.invoiceNumber,
+                supplier: validator.supplier,
+                image: validator.image,
+                receipt: validator.receipt,
+                creationDateTime: Date.now(),
+                updated_at: Date.now()
+            };
+            return ModelBatch.create(batchData);
+        });
+
+        const createdBatches = await Promise.all(batchPromises);
+
+        return res.json(utils.JParser('Batches created successfully', !!createdBatches, createdBatches));
     } catch (e) {
         throw new errorHandle(e.message, 400);
     }
@@ -511,6 +579,7 @@ exports.GetAllBatches = useAsync(async (req, res) => {
 
         const query = ModelBatch.find()
             .populate('supplier')
+            .populate('product')
             .lean();
 
         if (limit !== null) query.skip(skip).limit(limit);
@@ -539,6 +608,7 @@ exports.GetSingleBatch = useAsync(async (req, res) => {
     try {
         const batch = await ModelBatch.findById(req.params.id)
             .populate('supplier')
+            .populate('product')
             .lean();
 
         if (!batch) throw new errorHandle('Batch not found', 404);
@@ -552,19 +622,8 @@ exports.GetSingleBatch = useAsync(async (req, res) => {
 // Update Batch
 exports.UpdateBatch = useAsync(async (req, res) => {
     try {
-        const schema = Joi.object({
-            batchNumber: Joi.string(),
-            quantity: Joi.number().min(1),
-            manufacturingDate: Joi.number(),
-            expiryDate: Joi.number().allow(null),
-            supplier: Joi.string().allow(null),
-            costPrice: Joi.number().min(0).allow(null),
-            sellingPrice: Joi.number().min(0).allow(null),
-            notes: Joi.string().allow(''),
-            status: Joi.string().valid('active', 'expired', 'sold-out', 'recalled')
-        });
 
-        const validator = await schema.validateAsync(req.body);
+        const validator = req.body;
         const batch = await ModelBatch.findByIdAndUpdate(
             req.params.id,
             { ...validator, updated_at: Date.now() },
