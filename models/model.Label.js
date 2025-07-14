@@ -1,6 +1,6 @@
 const mongoose = require('mongoose')
 
-const labelGeneratorSchema = new mongoose.Schema({
+const labelSchema = new mongoose.Schema({
     manufacturer: {
         type: String,
     },
@@ -33,11 +33,16 @@ const labelGeneratorSchema = new mongoose.Schema({
     subImage: {
         type: String,
     },
+    status: {
+        type: String,
+        enum: ['failed', 'completed', 'training'],
+        default: 'training'
+    },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }
 })
 
 
-const ModelProduct = mongoose.model("model-label-generator", labelGeneratorSchema)
+const ModelLabel = mongoose.model("model-label", labelSchema)
 
-module.exports = ModelProduct
+module.exports = ModelLabel

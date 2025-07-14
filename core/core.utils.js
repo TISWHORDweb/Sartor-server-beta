@@ -1,10 +1,12 @@
 const ModelBatch = require("../models/model.batch");
 const ModelCustomer = require("../models/model.customer");
 const ModelInvoice = require("../models/model.invoice");
-const ModelProduct = require("../models/model.LabelGenerator");
+const ModelProduct = require("../models/model.Label");
 const ModelLead = require("../models/model.lead");
 const ModelLpo = require("../models/model.lpo");
 const ModelUser = require("../models/model.user");
+const multer = require('multer');
+const path = require('path');
 
 
 class CoreError extends Error {
@@ -106,3 +108,32 @@ exports.genID = async (id) => {
 
     return `${prefix}${dateCode}-${nextNumber}`;
 }
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/') 
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname)
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  const filetypes = /jpeg|jpg|png/;
+  const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = filetypes.test(file.mimetype);
+
+  if (mimetype && extname) {
+    return cb(null, true);
+  } else {
+    cb(new Error('Only JPEG, JPG, and PNG images are allowed!'), false);
+  }
+};
+
+exports.upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 
+  }
+});
