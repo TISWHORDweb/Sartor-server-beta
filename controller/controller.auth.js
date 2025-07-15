@@ -100,8 +100,9 @@ exports.UserLogin = useAsync(async (req, res) => {
 
                 const token = sha1(req.body.email + new Date())
                 const lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
+                const online = new Date();
 
-                await ModelUser.updateOne({ _id: user._id }, { $set: { token: token, lastLogin: lastLogin } }).then(() => {
+                await ModelUser.updateOne({ _id: user._id }, { $set: { token: token, lastLogin: lastLogin, online } }).then(() => {
                     // EmailNote(email, name, body, subject)
                     user.token = token
                     return res.json(utils.JParser('logged in successfuly', true, user));

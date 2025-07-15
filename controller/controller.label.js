@@ -7,6 +7,103 @@ const axios = require('axios');
 const FormData = require('form-data');
 const ModelLabel = require("../models/model.Label");
 
+
+
+exports.CreateLabel = useAsync(async (req, res) => {
+    try {
+
+        const labelSchema = Joi.object({
+            manufacturer: Joi.string().optional(),
+            batchID: Joi.string().optional(),
+            address: Joi.string().optional(),
+            quantity: Joi.string().optional(),
+            expiryDate: Joi.string().optional(),
+        });
+
+        const validator = await labelSchema.validateAsync(req.body);
+        const newLabel = await ModelLabel.create(validator);
+
+        return res.status(201).json(
+            utils.JParser('Label created successfully', true, newLabel)
+        );
+    } catch (e) {
+        throw new errorHandle(e.message, e.details ? 400 : 500);
+    }
+});
+
+exports.GetAllLabels = useAsync(async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+
+        const query = ModelLabel.find().lean();
+
+        if (limit !== null) query.skip(skip).limit(limit);
+        const labels = await query.exec();
+
+        const response = utils.JParser('Labels fetched successfully', !!labels, { data: labels });
+
+        if (limit !== null) {
+            const totalLabels = await ModelLabel.countDocuments();
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalLabels / limit),
+                totalLabels,
+                limit
+            };
+        }
+
+        return res.json(response);
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+
+exports.GetLabel = useAsync(async (req, res) => {
+    try {
+        const label = await ModelLabel.findById(req.params.id).lean();
+        if (!label) throw new errorHandle('Label not found', 404);
+
+        return res.json(utils.JParser('Label fetched successfully', true, label));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+
+exports.UpdateLabel = useAsync(async (req, res) => {
+    try {
+        const updatedLabel = await ModelLabel.findByIdAndUpdate(
+            req.params.id,
+            { ...req.body, updated_at: Date.now() },
+            { new: true, runValidators: true }
+        ).lean();
+
+        if (!updatedLabel) throw new errorHandle('Label not found', 404);
+
+        return res.json(
+            utils.JParser('Label updated successfully', true, updatedLabel)
+        );
+    } catch (e) {
+        throw new errorHandle(e.message, 400);
+    }
+});
+
+exports.DeleteLabel = useAsync(async (req, res) => {
+    try {
+        const label = await ModelLabel.findByIdAndDelete(req.params.id);
+        if (!label) throw new errorHandle('Label not found', 404);
+
+        return res.json(
+            utils.JParser('Label deleted successfully', true, null)
+        );
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
 exports.uploadLabel = useAsync(async (req, res) => {
     try {
         if (!req.body.batch_id || !req.body.product_name || !req.body.sku) {
@@ -63,8 +160,8 @@ exports.uploadLabel = useAsync(async (req, res) => {
                         path: filePath,
                         original_name: image.filename
                     });
-                    console.log(filename+" saved");
-                    
+                    console.log(filename + " saved");
+
                 }
             }
         }
@@ -89,7 +186,7 @@ exports.labelTrainWebhook = useAsync(async (req, res) => {
 
         const token = req.headers['s-token'];
 
-         if (token !== process.env.WEBHOOK_TOKEN) {
+        if (token !== process.env.WEBHOOK_TOKEN) {
             return res.status(404).json(utils.JParser('Invalid token', false, []));
         }
 
@@ -109,6 +206,6 @@ exports.labelTrainWebhook = useAsync(async (req, res) => {
         return res.json(utils.JParser('Received', true, []));
 
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });

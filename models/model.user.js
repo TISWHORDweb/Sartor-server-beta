@@ -60,6 +60,9 @@ const userSchema = new mongoose.Schema({
     lastLogin: {
         type: String,
     },
+    online: {
+        type: String,
+    },
     userId: {
         type: String,
     },

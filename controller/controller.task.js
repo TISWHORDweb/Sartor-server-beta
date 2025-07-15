@@ -82,7 +82,7 @@ exports.getTasks = useAsync(async (req, res) => {
     try {
         const userId = req.userId;
         const user = req.user;
-        
+
         // Pagination parameters
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
@@ -90,10 +90,13 @@ exports.getTasks = useAsync(async (req, res) => {
 
         // Base query conditions
         const queryConditions = user.userRole === "admin" ? {} : { user: userId };
-        
+
         // Get paginated tasks
         const tasks = await ModelTask.find(queryConditions)
-            .populate('user')
+            .populate({
+                path: 'user',
+                select: '-password'
+            })
             .sort({ createdAt: -1 }) // Sort by newest first
             .skip(skip)
             .limit(limit)
@@ -153,7 +156,10 @@ exports.singleTask = useAsync(async (req, res) => {
         if (!taskID) return res.status(402).json(utils.JParser('provide the tasks id', false, []));
 
         const tasks = await ModelTask.findOne({ _id: taskID })
-            .populate('user')
+            .populate({
+                path: 'user',
+                select: '-password'
+            })
 
         res.json(utils.JParser('Task fetch successfully', !!tasks, tasks));
 

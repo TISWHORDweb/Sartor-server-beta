@@ -10,27 +10,41 @@ const ModelBatch = require("../models/model.batch");
 
 
 exports.CreateProduct = useAsync(async (req, res) => {
-    try {
-        const schema = Joi.object({
-            productName: Joi.string().required(),
-            barcodeNumber: Joi.string().optional(),
-            manufacturer: Joi.string().optional(),
-            description: Joi.string().optional(),
-            productImage: Joi.string().optional()
-        });
+  try {
+    // if (!req.is('multipart/form-data')) {
+    //   throw new errorHandle('Content-Type must be multipart/form-data', 400);
+    // }
 
-        const batchId = await genID(2);
+    const { 
+      productName, 
+      barcodeNumber, 
+      manufacturer, 
+      description 
+    } = req.body;
 
-        const validator = await schema.validateAsync(req.body);
-        validator.batchId = batchId
-        const product = await ModelProduct.create(validator);
+    // if (!productName || typeof productName !== 'string') {
+    //   throw new errorHandle('Product name is required and must be a string', 400);
+    // }
 
-        return res.json(utils.JParser('Product created successfully', !!product, product));
-    } catch (e) {
-        throw new errorHandle(e.message, 500);
-    }
+    // if (barcodeNumber && typeof barcodeNumber !== 'string') {
+    //   throw new errorHandle('Barcode must be a string', 400);
+    // }
+
+    const batchId = await genID(2);
+
+    const product = await ModelProduct.create({
+      productName,
+      barcodeNumber: barcodeNumber || null,
+      manufacturer: manufacturer || null,
+      description: description || null,
+      batchId
+    });
+
+    return res.json(utils.JParser('Product created successfully', !!product, product));
+  } catch (e) {
+    throw new errorHandle(e.message, e.statusCode || 500);
+  }
 });
-
 
 exports.UpdateProduct = useAsync(async (req, res) => {
     try {

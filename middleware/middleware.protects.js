@@ -33,7 +33,7 @@ exports.authMiddleware = useAsync(async (req, res, next) => {
         lastLogin = new Date(lastLogin)
 
         //****** Calculate an hour ago in milliseconds *******//
-        const oneHour = 60 * 60 * 1000; /* ms */
+        const oneHour = 120 * 120 * 1000; /* ms */
 
         //********** Throw error if token has expired (1hr) **************//
         if (((new Date) - lastLogin) > oneHour) { res.status(401).json(utils.JParser("Invalid or expired token, Use a valid token and try again", false, [])); }
