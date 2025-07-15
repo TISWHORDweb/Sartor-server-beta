@@ -210,6 +210,8 @@ exports.uploadLabel = useAsync(async (req, res) => {
             axios.post(`${process.env.LABEL_BASE_URL}/train`, {
                 label_id: req.body.label_id
             }).catch(err => console.error('Training API failed (non-critical):', err));
+
+            console.log("training")
         }
 
         return res.json(utils.JParser('Label processed successfully', true, {
