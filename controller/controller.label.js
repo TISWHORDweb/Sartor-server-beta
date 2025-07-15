@@ -6,6 +6,8 @@ const { useAsync, utils, errorHandle, } = require('../core');
 const axios = require('axios');
 const FormData = require('form-data');
 const ModelLabel = require("../models/model.Label");
+const Joi = require("joi");
+const { uploadToCloudinary } = require("../core/core.cloudinary");
 
 
 
@@ -13,11 +15,12 @@ exports.CreateLabel = useAsync(async (req, res) => {
     try {
 
         const labelSchema = Joi.object({
-            manufacturer: Joi.string().optional(),
-            batchID: Joi.string().optional(),
-            address: Joi.string().optional(),
-            quantity: Joi.string().optional(),
-            expiryDate: Joi.string().optional(),
+            manufacturer: Joi.string().required(),
+            batch: Joi.string().required(),
+            product: Joi.string().required(),
+            address: Joi.string().required(),
+            quantity: Joi.number().required(),
+            expiryDate: Joi.string().required(),
         });
 
         const validator = await labelSchema.validateAsync(req.body);
@@ -37,7 +40,7 @@ exports.GetAllLabels = useAsync(async (req, res) => {
         const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
         const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
 
-        const query = ModelLabel.find().lean();
+        const query = ModelLabel.find().populate('product').populate('batch').lean();
 
         if (limit !== null) query.skip(skip).limit(limit);
         const labels = await query.exec();
@@ -63,7 +66,7 @@ exports.GetAllLabels = useAsync(async (req, res) => {
 
 exports.GetLabel = useAsync(async (req, res) => {
     try {
-        const label = await ModelLabel.findById(req.params.id).lean();
+        const label = await ModelLabel.findById(req.params.id).populate('product').populate('batch').lean();
         if (!label) throw new errorHandle('Label not found', 404);
 
         return res.json(utils.JParser('Label fetched successfully', true, label));
@@ -104,87 +107,88 @@ exports.DeleteLabel = useAsync(async (req, res) => {
     }
 });
 
-exports.uploadLabel = useAsync(async (req, res) => {
-    try {
-        if (!req.body.batch_id || !req.body.product_name || !req.body.sku) {
-            return res.status(400).json(utils.JParser('Required fields missing', false, []));
-        }
+// exports.uploadLabel = useAsync(async (req, res) => {
+//     try {
+//         if (!req.body.batch_id || !req.body.product_name || !req.body.sku) {
+//             return res.status(400).json(utils.JParser('Required fields missing', false, []));
+//         }
 
-        if (req.file) {
-            if (!fs.existsSync(req.file.path)) {
-                throw new Error('Uploaded file not found');
-            }
-        }
+//         if (req.file) {
+//             if (!fs.existsSync(req.file.path)) {
+//                 throw new Error('Uploaded file not found');
+//             }
+//         }
 
-        const form = new FormData();
-        form.append('batch_id', req.body.batch_id);
-        form.append('product_name', req.body.product_name);
-        form.append('sku', req.body.sku);
+//         const form = new FormData();
+//         form.append('batch_id', req.body.batch_id);
+//         form.append('product_name', req.body.product_name);
+//         form.append('sku', req.body.sku);
 
-        if (req.file) {
-            form.append('images', fs.createReadStream(req.file.path), {
-                filename: req.file.originalname,
-                contentType: req.file.mimetype
-            });
-        }
+//         if (req.file) {
+//             form.append('images', fs.createReadStream(req.file.path), {
+//                 filename: req.file.originalname,
+//                 contentType: req.file.mimetype
+//             });
+//         }
 
-        const apiResponse = await axios.post(`${process.env.LABEL_BASE_URL}/api/upload-labels`, form, {
-            headers: {
-                ...form.getHeaders(),
-                'Content-Type': 'multipart/form-data'
-            }
-        });
+//         const apiResponse = await axios.post(`${process.env.LABEL_BASE_URL}/api/upload-labels`, form, {
+//             headers: {
+//                 ...form.getHeaders(),
+//                 'Content-Type': 'multipart/form-data'
+//             }
+//         });
 
-        if (apiResponse.data && apiResponse.data.modified_images &&
-            apiResponse.data.modified_images.length > 0) {
+//         if (apiResponse.data && apiResponse.data.modified_images &&
+//             apiResponse.data.modified_images.length > 0) {
 
-            const modifiedImages = apiResponse.data.modified_images;
+//             const modifiedImages = apiResponse.data.modified_images;
 
-            for (const image of modifiedImages) {
-                if (image.modified_image) {
-                    const base64Data = image.modified_image.replace(/^data:image\/\w+;base64,/, '');
+//             for (const image of modifiedImages) {
+//                 if (image.modified_image) {
+//                     const base64Data = image.modified_image.replace(/^data:image\/\w+;base64,/, '');
 
-                    const extension = image.filename.split('.').pop() || 'jpg';
-                    const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${extension}`;
-                    const filePath = path.join('modified', filename);
+//                     const extension = image.filename.split('.').pop() || 'jpg';
+//                     const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${extension}`;
+//                     const filePath = path.join('modified', filename);
 
-                    if (!fs.existsSync('modified')) {
-                        fs.mkdirSync('modified');
-                    }
+//                     if (!fs.existsSync('modified')) {
+//                         fs.mkdirSync('modified');
+//                     }
 
-                    fs.writeFileSync(filePath, base64Data, 'base64');
+//                     fs.writeFileSync(filePath, base64Data, 'base64');
 
-                    apiResponse.data.saved_images = apiResponse.data.saved_images || [];
-                    apiResponse.data.saved_images.push({
-                        filename: filename,
-                        path: filePath,
-                        original_name: image.filename
-                    });
-                    console.log(filename + " saved");
+//                     apiResponse.data.saved_images = apiResponse.data.saved_images || [];
+//                     apiResponse.data.saved_images.push({
+//                         filename: filename,
+//                         path: filePath,
+//                         original_name: image.filename
+//                     });
+//                     console.log(filename + " saved");
 
-                }
-            }
-        }
+//                 }
+//             }
+//         }
 
-        return res.json(utils.JParser('Label uploaded', true, apiResponse.data));
+//         return res.json(utils.JParser('Label uploaded', true, apiResponse.data));
 
-    } catch (e) {
-        if (req.file && fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-        }
+//     } catch (e) {
+//         if (req.file && fs.existsSync(req.file.path)) {
+//             fs.unlinkSync(req.file.path);
+//         }
 
-        console.error('Full error:', e);
-        return res.status(500).json(
-            utils.JParser(e.response?.data?.message || e.message || 'Upload failed', false, [])
-        );
-    }
-});
+//         console.error('Full error:', e);
+//         return res.status(500).json(
+//             utils.JParser(e.response?.data?.message || e.message || 'Upload failed', false, [])
+//         );
+//     }
+// });
 
 
 exports.labelTrainWebhook = useAsync(async (req, res) => {
     try {
 
         const token = req.headers['s-token'];
+        console.log(req)
 
         if (token !== process.env.WEBHOOK_TOKEN) {
             return res.status(404).json(utils.JParser('Invalid token', false, []));
@@ -207,5 +211,115 @@ exports.labelTrainWebhook = useAsync(async (req, res) => {
 
     } catch (e) {
         throw new errorHandle(e.message, 500);
+    }
+});
+
+
+const callTrainingAPI = async (labelId) => {
+    try {
+        const response = await axios.post(`${process.env.LABEL_BASE_URL}/train`, {
+            label_id: labelId
+        });
+        console.log("trained");
+        return response.data;
+
+    } catch (error) {
+        console.error('Training API error:', error);
+        throw new Error('Training API call failed');
+    }
+};
+
+
+exports.uploadLabel = useAsync(async (req, res) => {
+    let tempFiles = [];
+
+    try {
+        // Validate required fields
+        if (!req.body.label_id) {
+            throw new errorHandle('label_id is required', 400);
+        }
+
+        // Process external API upload
+        const form = new FormData();
+        if (req.body.batch_id) form.append('batch_id', req.body.batch_id);
+        if (req.body.product_name) form.append('product_name', req.body.product_name);
+        if (req.body.sku) form.append('sku', req.body.sku);
+        if (req.file) {
+            form.append('images', fs.createReadStream(req.file.path), {
+                filename: req.file.originalname,
+                contentType: req.file.mimetype
+            });
+        }
+
+        const apiResponse = await axios.post(
+            `${process.env.LABEL_BASE_URL}/upload-labels`,
+            form,
+            { headers: form.getHeaders() }
+        );
+
+        if (apiResponse.data?.modified_images?.length > 0) {
+            const label = await ModelLabel.findById(req.body.label_id);
+            if (!label) throw new errorHandle('Label not found', 404);
+
+            // Upload images sequentially to avoid rate limits
+            for (const [index, image] of apiResponse.data.modified_images.entries()) {
+                if (image.modified_image) {
+                    const tempPath = path.join('/tmp', `upload-${Date.now()}-${index}.jpg`);
+                    fs.writeFileSync(tempPath, image.modified_image.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+                    tempFiles.push(tempPath);
+
+                    try {
+                        const url = await uploadToCloudinary(tempPath);
+                        if (index === 0) label.image = url;
+                        if (index === 1) label.subImage = url;
+                    } finally {
+                        // Clean up even if upload fails
+                        fs.unlinkSync(tempPath);
+                        tempFiles = tempFiles.filter(f => f !== tempPath);
+                    }
+                }
+            }
+
+            await label.save();
+
+            // Fire-and-forget training API
+            axios.post(`${process.env.LABEL_BASE_URL}/train`, {
+                label_id: req.body.label_id
+            }).catch(err => console.error('Training API failed (non-critical):', err));
+        }
+
+        return res.json(utils.JParser('Label processed successfully', true, {
+            label_id: req.body.label_id,
+            image_count: apiResponse.data?.modified_images?.length || 0
+        }));
+
+    } catch (e) {
+        // Clean up any remaining temp files
+        tempFiles.forEach(f => {
+            try { fs.unlinkSync(f); } catch (cleanupErr) {
+                console.error('Temp file cleanup failed:', cleanupErr);
+            }
+        });
+
+        if (req.file?.path) {
+            try { fs.unlinkSync(req.file.path); } catch (err) {
+                console.error('Upload file cleanup failed:', err);
+            }
+        }
+
+        console.error('Upload processing failed:', {
+            error: e.message,
+            stack: e.stack,
+            label_id: req.body?.label_id,
+            time: new Date().toISOString()
+        });
+
+        return res.status(e.statusCode || 500).json(
+            utils.JParser(
+                e.message.includes('Cloudinary') ? 'Image processing failed' : e.message,
+                false,
+                null
+            )
+        );
     }
 });

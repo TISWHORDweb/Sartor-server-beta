@@ -93,13 +93,13 @@ router.get('/batchs', useAsync(authMiddleware), useAsync(roleMiddleware(['user']
 router.get('/batch/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleBatch );
 
 //LABEL
-router.post('/label/upload', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])),  upload.single('image'), uploadLabel );
+router.post('/label/upload', upload.single('image'), uploadLabel );
 router.post('/label/webhook', labelTrainWebhook );
-router.post('/label', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateLabel );
+router.post('/label', CreateLabel );
 router.put('/label/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdateLabel );
 router.delete('/label/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteLabel );
-router.get('/labels', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllLabels );
-router.get('/label/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetLabel );
+router.get('/labels', GetAllLabels );
+router.get('/label/:id',  GetLabel );
 
 /**
  * Export lastly

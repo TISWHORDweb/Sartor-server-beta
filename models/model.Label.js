@@ -4,11 +4,16 @@ const labelSchema = new mongoose.Schema({
     manufacturer: {
         type: String,
     },
-    // supplier: {
-    //     type: mongoose.Schema.Types.ObjectId,
-    //     ref: 'model-supplier',
-    //     required: true
-    // },
+    batch: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-batch',
+        required: true
+    },
+    product: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-product',
+        required: true
+    },
     batchID: {
         type: String,
     },
@@ -16,7 +21,7 @@ const labelSchema = new mongoose.Schema({
         type: String,
     },
     quantity: {
-        type: String,
+        type: Number,
     },
     expiryDate: {
         type: String,
