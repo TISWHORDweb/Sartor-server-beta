@@ -119,12 +119,12 @@ exports.labelTrainWebhook = useAsync(async (req, res) => {
         }
 
         const schema = Joi.object({
-            lead_id: Joi.string().required(),
+            label_id: Joi.string().required(),
             status: Joi.string().required(),
         });
 
         const validator = await schema.validateAsync(req.body);
-        const id = validator.lead_id
+        const id = validator.label_id
         const label = await ModelLabel.findByIdAndUpdate(id, {status: validator.status}, { new: true });
 
         if (!label) {
