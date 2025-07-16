@@ -12,7 +12,7 @@ const { getUser, deleteUser, singleUser, editUser, allUser, createUser } = requi
 const { deleteTasks, CreateTask, editTask } = require('../controller/controller.task');
 const { useAsync } = require('../core');
 const { CreateLead, UpdateLead, DeleteLead, GetAllLeads, GetSingleLead, CreateLpo, UpdateLpo, DeleteLpo, GetAllLpos, GetSingleLpo, GetAllInvoices, GetSingleInvoice, DeleteInvoice, changeInvoiceStatus, updateLeadStatus } = require('../controller/controller.customer');
-const { CreateSupplier, UpdateSupplier, DeleteSupplier, GetAllSuppliers, GetSingleSupplier, CreateProduct, UpdateProduct, DeleteProduct, GetAllProducts, GetSingleProduct, CreateRestock, UpdateRestock, DeleteRestock, GetAllRestocks, GetSingleRestock, CreateBatch, GetAllBatches, GetSingleBatch, UpdateBatch, DeleteBatch } = require('../controller/controller.product');
+const { CreateSupplier, UpdateSupplier, DeleteSupplier, GetAllSuppliers, GetSingleSupplier, CreateProduct, UpdateProduct, DeleteProduct, GetAllProducts, GetSingleProduct, CreateRestock, UpdateRestock, DeleteRestock, GetAllRestocks, GetSingleRestock, CreateBatch, GetAllBatches, GetSingleBatch, UpdateBatch, DeleteBatch, GetAllProductBatch } = require('../controller/controller.product');
 const { uploadLabel, labelTrainWebhook, CreateLabel, GetAllLabels, GetLabel, UpdateLabel, DeleteLabel } = require('../controller/controller.label');
 const { upload } = require('../core/core.utils');
 
@@ -71,6 +71,7 @@ router.put('/product/edit/:id', useAsync(authMiddleware), useAsync(roleMiddlewar
 router.delete('/product/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteProduct );
 router.get('/products', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllProducts );
 router.get('/product/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleProduct );
+router.get('/product/batches/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllProductBatch );
 
 //RESTOCK
 router.post('/restock', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateRestock );

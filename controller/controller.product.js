@@ -230,6 +230,23 @@ exports.GetSingleProduct = useAsync(async (req, res) => {
     }
 });
 
+exports.GetAllProductBatch= useAsync(async (req, res) => {
+    try {
+        const { id } = req.params;
+        const batches = await ModelBatch.find({product: id})
+            .populate('supplier')
+            .lean();
+
+        if (!batches) {
+            return res.status(404).json(utils.JParser('batches not found', false, null));
+        }
+
+        return res.json(utils.JParser('batches fetched successfully', true, batches));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
 //////////////////////////////////////////////////////////////////////////////////////
 ////RESTOCK ROUTES
 //////////////////////////////////////////////////////////////////////////////////////
