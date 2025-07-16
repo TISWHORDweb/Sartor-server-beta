@@ -20,6 +20,12 @@ const labelSchema = new mongoose.Schema({
     address: {
         type: String,
     },
+    image: {
+        type: String,
+    },
+    subImage: {
+        type: String,
+    },
     quantity: {
         type: Number,
     },
