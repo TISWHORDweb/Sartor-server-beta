@@ -13,7 +13,7 @@ const { deleteTasks, CreateTask, editTask } = require('../controller/controller.
 const { useAsync } = require('../core');
 const { CreateLead, UpdateLead, DeleteLead, GetAllLeads, GetSingleLead, CreateLpo, UpdateLpo, DeleteLpo, GetAllLpos, GetSingleLpo, GetAllInvoices, GetSingleInvoice, DeleteInvoice, changeInvoiceStatus, updateLeadStatus } = require('../controller/controller.customer');
 const { CreateSupplier, UpdateSupplier, DeleteSupplier, GetAllSuppliers, GetSingleSupplier, CreateProduct, UpdateProduct, DeleteProduct, GetAllProducts, GetSingleProduct, CreateRestock, UpdateRestock, DeleteRestock, GetAllRestocks, GetSingleRestock, CreateBatch, GetAllBatches, GetSingleBatch, UpdateBatch, DeleteBatch, GetAllProductBatch } = require('../controller/controller.product');
-const { uploadLabel, labelTrainWebhook, CreateLabel, GetAllLabels, GetLabel, UpdateLabel, DeleteLabel } = require('../controller/controller.label');
+const { uploadLabel, labelTrainWebhook, CreateLabel, GetAllLabels, GetLabel, UpdateLabel, DeleteLabel, verifyLabel } = require('../controller/controller.label');
 const { upload } = require('../core/core.utils');
 
 
@@ -94,13 +94,14 @@ router.get('/batchs', useAsync(authMiddleware), useAsync(roleMiddleware(['user']
 router.get('/batch/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleBatch );
 
 //LABEL
-router.post('/label/upload', upload.single('image'), uploadLabel );
-router.post('/label/webhook', labelTrainWebhook );
-router.post('/label', CreateLabel );
+router.post('/label/upload', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), upload.single('images'), uploadLabel );
+router.post('/label/verify', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), upload.single('images'), verifyLabel );
+router.post('/label/webhook', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), labelTrainWebhook );
+router.post('/label', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateLabel );
 router.put('/label/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdateLabel );
 router.delete('/label/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteLabel );
-router.get('/labels', GetAllLabels );
-router.get('/label/:id',  GetLabel );
+router.get('/labels', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllLabels );
+router.get('/label/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])),  GetLabel );
 
 /**
  * Export lastly

@@ -15,12 +15,8 @@ exports.CreateLabel = useAsync(async (req, res) => {
     try {
 
         const labelSchema = Joi.object({
-            manufacturer: Joi.string().required(),
             batch: Joi.string().required(),
             product: Joi.string().required(),
-            address: Joi.string().required(),
-            quantity: Joi.number().required(),
-            expiryDate: Joi.string().required(),
         });
 
         const validator = await labelSchema.validateAsync(req.body);
@@ -40,7 +36,15 @@ exports.GetAllLabels = useAsync(async (req, res) => {
         const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
         const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
 
-        const query = ModelLabel.find().populate('product').populate('batch').lean();
+        const query = ModelLabel.find()
+            .populate('product')
+            .populate({
+                path: 'batch',
+                populate: {
+                    path: 'supplier', // <-- populate supplier inside batch
+                },
+            })
+            .lean();
 
         if (limit !== null) query.skip(skip).limit(limit);
         const labels = await query.exec();
@@ -125,7 +129,7 @@ exports.labelTrainWebhook = useAsync(async (req, res) => {
 
         const validator = await schema.validateAsync(req.body);
         const id = validator.label_id
-        const label = await ModelLabel.findByIdAndUpdate(id, {status: validator.status}, { new: true });
+        const label = await ModelLabel.findByIdAndUpdate(id, { status: validator.status }, { new: true });
 
         if (!label) {
             return res.status(404).json(utils.JParser('label not found', false, []));
@@ -163,11 +167,77 @@ exports.uploadLabel = useAsync(async (req, res) => {
             throw new errorHandle('label_id is required', 400);
         }
 
-        // Process external API upload
+        const label = await ModelLabel.findById(req.body.label_id);
+        if (label) {
+            // Process external API upload
+            const form = new FormData();
+            if (req.body.batch_id) form.append('batch_id', req.body.batch_id);
+            if (req.body.product_name) form.append('product_name', req.body.product_name);
+            if (req.body.sku) form.append('sku', req.body.sku);
+            if (req.file) {
+                form.append('images', fs.createReadStream(req.file.path), {
+                    filename: req.file.originalname,
+                    contentType: req.file.mimetype
+                });
+            }
+
+            const apiResponse = await axios.post(
+                `${process.env.LABEL_BASE_URL}/upload-labels`,
+                form,
+                { headers: form.getHeaders() }
+            );
+
+            if (apiResponse.data?.modified_images?.length > 0) {
+
+                if (!label) throw new errorHandle('Label not found', 404);
+
+                // Upload images sequentially to avoid rate limits
+                for (const [index, image] of apiResponse.data.modified_images.entries()) {
+                    if (image.modified_image) {
+                        const tempPath = path.join('/tmp', `upload-${Date.now()}-${index}.jpg`);
+                        fs.writeFileSync(tempPath, image.modified_image.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+                        tempFiles.push(tempPath);
+
+                        try {
+                            const url = await uploadToCloudinary(tempPath);
+                            if (index === 0) label.image = url;
+                            if (index === 1) label.subImage = url;
+                        } finally {
+                            // Clean up even if upload fails
+                            fs.unlinkSync(tempPath);
+                            tempFiles = tempFiles.filter(f => f !== tempPath);
+                        }
+                    }
+                }
+
+                await label.save();
+
+                // Fire-and-forget training API
+                axios.post(`${process.env.LABEL_BASE_URL}/train`, {
+                    label_id: req.body.label_id
+                }).catch(err => console.error('Training API failed (non-critical):', err));
+
+                console.log("training")
+            }
+
+            return res.json(utils.JParser('Label processed successfully', true, {
+                label_id: req.body.label_id,
+                image_count: apiResponse.data?.modified_images?.length || 0
+            }));
+        } else {
+            return res.status(400).json(utils.JParser('Label not found', false, []));
+        }
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+
+exports.verifyLabel = useAsync(async (req, res) => {
+    try {
+
         const form = new FormData();
-        if (req.body.batch_id) form.append('batch_id', req.body.batch_id);
-        if (req.body.product_name) form.append('product_name', req.body.product_name);
-        if (req.body.sku) form.append('sku', req.body.sku);
+
         if (req.file) {
             form.append('images', fs.createReadStream(req.file.path), {
                 filename: req.file.originalname,
@@ -176,76 +246,20 @@ exports.uploadLabel = useAsync(async (req, res) => {
         }
 
         const apiResponse = await axios.post(
-            `${process.env.LABEL_BASE_URL}/upload-labels`,
+            `${process.env.LABEL_BASE_URL}/verify`,
             form,
             { headers: form.getHeaders() }
         );
 
-        if (apiResponse.data?.modified_images?.length > 0) {
-            const label = await ModelLabel.findById(req.body.label_id);
-            if (!label) throw new errorHandle('Label not found', 404);
+        if (apiResponse) {
+            return res.json(utils.JParser('Label verify successfully ', true, apiResponse.data));
 
-            // Upload images sequentially to avoid rate limits
-            for (const [index, image] of apiResponse.data.modified_images.entries()) {
-                if (image.modified_image) {
-                    const tempPath = path.join('/tmp', `upload-${Date.now()}-${index}.jpg`);
-                    fs.writeFileSync(tempPath, image.modified_image.replace(/^data:image\/\w+;base64,/, ''), 'base64');
-                    tempFiles.push(tempPath);
-
-                    try {
-                        const url = await uploadToCloudinary(tempPath);
-                        if (index === 0) label.image = url;
-                        if (index === 1) label.subImage = url;
-                    } finally {
-                        // Clean up even if upload fails
-                        fs.unlinkSync(tempPath);
-                        tempFiles = tempFiles.filter(f => f !== tempPath);
-                    }
-                }
-            }
-
-            await label.save();
-
-            // Fire-and-forget training API
-            axios.post(`${process.env.LABEL_BASE_URL}/train`, {
-                label_id: req.body.label_id
-            }).catch(err => console.error('Training API failed (non-critical):', err));
-
-            console.log("training")
+        } else {
+            return res.status(400).json(utils.JParser('Unknown error occured', false, []));
         }
-
-        return res.json(utils.JParser('Label processed successfully', true, {
-            label_id: req.body.label_id,
-            image_count: apiResponse.data?.modified_images?.length || 0
-        }));
-
     } catch (e) {
-        // Clean up any remaining temp files
-        tempFiles.forEach(f => {
-            try { fs.unlinkSync(f); } catch (cleanupErr) {
-                console.error('Temp file cleanup failed:', cleanupErr);
-            }
-        });
+        console.log(e);
 
-        if (req.file?.path) {
-            try { fs.unlinkSync(req.file.path); } catch (err) {
-                console.error('Upload file cleanup failed:', err);
-            }
-        }
-
-        console.error('Upload processing failed:', {
-            error: e.message,
-            stack: e.stack,
-            label_id: req.body?.label_id,
-            time: new Date().toISOString()
-        });
-
-        return res.status(e.statusCode || 500).json(
-            utils.JParser(
-                e.message.includes('Cloudinary') ? 'Image processing failed' : e.message,
-                false,
-                null
-            )
-        );
+        return res.status(500).json(utils.JParser(e.message, false, []));
     }
 });

@@ -16,34 +16,51 @@ const PRIVILEGED_ROLES = ['admin'];
 
 //universal
 exports.authMiddleware = useAsync(async (req, res, next) => {
-    const sToken = req.headers['s-token'];
+  const sToken = req.headers['s-token'];
 
-    if (sToken === 'undefined') { res.status(401).json(utils.JParser("Unauthorized Access, Use a valid token and try again", false, [])); }
+  if (!sToken || sToken === 'undefined') {
+    return res
+      .status(401)
+      .json(utils.JParser("Unauthorized Access, Use a valid token and try again", false, []));
+  }
 
-    //check and decode confirm code validity
-    const isValid = await ModelUser.findOne({ token: sToken });
+  const isValid = await ModelUser.findOne({ token: sToken });
 
-    if (isValid) {
-        //****** Decrypt Last Login Date and Time *******//
-        const bytes = CryptoJS.AES.decrypt(isValid.lastLogin, process.env.SECRET_KEY);
-        let lastLogin = bytes.toString(CryptoJS.enc.Utf8);
+  if (!isValid) {
+    return res
+      .status(400)
+      .json(utils.JParser("Invalid token code or token, Use a valid token and try again", false, []));
+  }
 
-        //****** Convert to date from string *******//
-        lastLogin = JSON.parse(lastLogin)
-        lastLogin = new Date(lastLogin)
+  const bytes = CryptoJS.AES.decrypt(isValid.lastLogin, process.env.SECRET_KEY);
+  let lastLogin = bytes.toString(CryptoJS.enc.Utf8);
 
-        //****** Calculate an hour ago in milliseconds *******//
-        const oneHour = 120 * 120 * 1000; /* ms */
+  try {
+    lastLogin = new Date(JSON.parse(lastLogin));
+  } catch (e) {
+    return res
+      .status(400)
+      .json(utils.JParser("Corrupted last login timestamp", false, []));
+  }
 
-        //********** Throw error if token has expired (1hr) **************//
-        if (((new Date) - lastLogin) > oneHour) { res.status(401).json(utils.JParser("Invalid or expired token, Use a valid token and try again", false, [])); }
+  const oneHour = 120 * 120 * 1000; // 4 hours, confirm if this is intentional
 
-        req.userId = isValid._id
-        req.user = isValid
-        if (!isValid.blocked) next();
-        else return res.status(400).json(utils.JParser("token is valid but is not authorized for this route, Use a valid token and try again", false, []));
-    } else res.status(400).json(utils.JParser("Invalid token code or token, Use a valid token and try again", false, []));
-})
+  if ((new Date() - lastLogin) > oneHour) {
+    return res
+      .status(401)
+      .json(utils.JParser("Invalid or expired token, Use a valid token and try again", false, []));
+  }
+
+  if (isValid.blocked) {
+    return res
+      .status(400)
+      .json(utils.JParser("Token is valid but not authorized for this route", false, []));
+  }
+
+  req.userId = isValid._id;
+  req.user = isValid;
+  return next(); // proceed only if all checks passed
+});
 
 exports.roleMiddleware = (roles) => {
   return (req, res, next) => {
