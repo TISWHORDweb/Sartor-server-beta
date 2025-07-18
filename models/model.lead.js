@@ -18,9 +18,15 @@ const leadSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ["Pharmacy  ", "Clinic"], 
+        enum: ["Pharmacy  ", "Clinic"],
     },
     image: {
+        type: String,
+    },
+    state: {
+        type: String,
+    },
+    lga: {
         type: String,
     },
     dealSize: {
@@ -37,7 +43,7 @@ const leadSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ["Contacted", "Order Fulfilled", "Closed Lost", "Follow Up", "Qualified", "Interested", "Hold", "In-Negotiations", "LPO Generated", "Closed Won", "Payment Confirmed"],  
+        enum: ["Contacted", "Order Fulfilled", "Closed Lost", "Follow Up", "Qualified", "Interested", "Hold", "In-Negotiations", "LPO Generated", "Closed Won", "Payment Confirmed"],
     },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }

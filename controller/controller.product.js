@@ -19,7 +19,8 @@ exports.CreateProduct = useAsync(async (req, res) => {
       productName, 
       barcodeNumber, 
       manufacturer, 
-      description 
+      description,
+      productImage 
     } = req.body;
 
     // if (!productName || typeof productName !== 'string') {
@@ -37,6 +38,7 @@ exports.CreateProduct = useAsync(async (req, res) => {
       barcodeNumber: barcodeNumber || null,
       manufacturer: manufacturer || null,
       description: description || null,
+      productImage: productImage || null,
       batchId
     });
 
