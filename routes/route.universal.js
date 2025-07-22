@@ -11,7 +11,7 @@ const { getUser, deleteUser, singleUser, editUser, allUser, createUser, GetDashb
 // const { product, singleProduct, allProduct, deleteProduct, editProduct, getAdminProduct, productCategory, singleProductCategory, editProductCategory, allProductCategory, deleteProductCategory, getProductsByCategory } = require('../controller/controller.product');
 const { deleteTasks, CreateTask, editTask } = require('../controller/controller.task');
 const { useAsync } = require('../core');
-const { CreateLead, UpdateLead, DeleteLead, GetAllLeads, GetSingleLead, CreateLpo, UpdateLpo, DeleteLpo, GetAllLpos, GetSingleLpo, GetAllInvoices, GetSingleInvoice, DeleteInvoice, changeInvoiceStatus, updateLeadStatus, GetAllCustomer } = require('../controller/controller.customer');
+const { CreateLead, UpdateLead, DeleteLead, GetAllLeads, GetSingleLead, CreateLpo, UpdateLpo, DeleteLpo, GetAllLpos, GetSingleLpo, GetAllInvoices, GetSingleInvoice, DeleteInvoice, changeInvoiceStatus, updateLeadStatus, GetAllCustomer, UpdateCustomer, DeleteCustomer, GetCustomer } = require('../controller/controller.customer');
 const { CreateSupplier, UpdateSupplier, DeleteSupplier, GetAllSuppliers, GetSingleSupplier, CreateProduct, UpdateProduct, DeleteProduct, GetAllProducts, GetSingleProduct, CreateRestock, UpdateRestock, DeleteRestock, GetAllRestocks, GetSingleRestock, CreateBatch, GetAllBatches, GetSingleBatch, UpdateBatch, DeleteBatch, GetAllProductBatch } = require('../controller/controller.product');
 const { uploadLabel, labelTrainWebhook, CreateLabel, GetAllLabels, GetLabel, UpdateLabel, DeleteLabel, verifyLabel } = require('../controller/controller.label');
 const { upload } = require('../core/core.utils');
@@ -106,6 +106,9 @@ router.get('/label/:id',  GetLabel );
 
 //CUSTOMER
 router.get('/customers', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllCustomer );
+router.put('/customer/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdateCustomer );
+router.delete('/customer/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteCustomer );
+router.get('/customer/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetCustomer );
 
 /**
  * Export lastly

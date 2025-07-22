@@ -581,9 +581,9 @@ exports.GetAllCustomer = useAsync(async (req, res) => {
             .lean();
 
         if (limit !== null) query.skip(skip).limit(limit);
-        const lead = await query.exec();
+        const customer = await query.exec();
 
-        const response = utils.JParser('Customer fetched successfully', !!lead, { data: lead });
+        const response = utils.JParser('Customer fetched successfully', !!customer, { data: customer });
 
         if (limit !== null) {
             const totalLabels = await ModelCustomer.countDocuments();
@@ -596,6 +596,49 @@ exports.GetAllCustomer = useAsync(async (req, res) => {
         }
 
         return res.json(response);
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+exports.GetCustomer = useAsync(async (req, res) => {
+    try {
+        const customer = await ModelCustomer.findById(req.params.id).populate('lead').lean();
+        if (!customer) throw new errorHandle('Customer not found', 404);
+
+        return res.json(utils.JParser('Label fetched successfully', true, customer));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+
+exports.UpdateCustomer= useAsync(async (req, res) => {
+    try {
+        const updatedCustomer = await ModelCustomer.findByIdAndUpdate(
+            req.params.id,
+            { ...req.body, updated_at: Date.now() },
+            { new: true, runValidators: true }
+        ).lean();
+
+        if (!updatedCustomer) throw new errorHandle('Customer not found', 404);
+
+        return res.json(
+            utils.JParser('Customer updated successfully', true, updatedCustomer)
+        );
+    } catch (e) {
+        throw new errorHandle(e.message, 400);
+    }
+});
+
+exports.DeleteCustomer = useAsync(async (req, res) => {
+    try {
+        const customer = await ModelCustomer.findByIdAndDelete(req.params.id);
+        if (!customer) throw new errorHandle('Customer not found', 404);
+
+        return res.json(
+            utils.JParser('Customer deleted successfully', true, null)
+        );
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }
