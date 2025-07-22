@@ -533,7 +533,7 @@ exports.GetSingleInvoice = useAsync(async (req, res) => {
 exports.DeleteInvoice = useAsync(async (req, res) => {
     try {
         const { id } = req.params;
-        const deletedInvoice = await ModelLead.findByIdAndDelete(id);
+        const deletedInvoice = await ModelInvoice.findByIdAndDelete(id);
 
         if (!deletedInvoice) {
             return res.status(404).json(utils.JParser('Invoice not found', false, null));
