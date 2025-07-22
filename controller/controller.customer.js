@@ -569,3 +569,34 @@ exports.changeInvoiceStatus = useAsync(async (req, res) => {
 //////////////////////////////////////////////////////////////////////////////////////
 ////CUSTOMER ROUTES
 //////////////////////////////////////////////////////////////////////////////////////
+
+exports.GetAllCustomer = useAsync(async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+
+        const query = ModelCustomer.find()
+            .populate('lead')
+            .lean();
+
+        if (limit !== null) query.skip(skip).limit(limit);
+        const lead = await query.exec();
+
+        const response = utils.JParser('Customer fetched successfully', !!lead, { data: lead });
+
+        if (limit !== null) {
+            const totalLabels = await ModelCustomer.countDocuments();
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalLabels / limit),
+                totalLabels,
+                limit
+            };
+        }
+
+        return res.json(response);
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});

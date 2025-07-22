@@ -11,7 +11,7 @@ const { getUser, deleteUser, singleUser, editUser, allUser, createUser, GetDashb
 // const { product, singleProduct, allProduct, deleteProduct, editProduct, getAdminProduct, productCategory, singleProductCategory, editProductCategory, allProductCategory, deleteProductCategory, getProductsByCategory } = require('../controller/controller.product');
 const { deleteTasks, CreateTask, editTask } = require('../controller/controller.task');
 const { useAsync } = require('../core');
-const { CreateLead, UpdateLead, DeleteLead, GetAllLeads, GetSingleLead, CreateLpo, UpdateLpo, DeleteLpo, GetAllLpos, GetSingleLpo, GetAllInvoices, GetSingleInvoice, DeleteInvoice, changeInvoiceStatus, updateLeadStatus } = require('../controller/controller.customer');
+const { CreateLead, UpdateLead, DeleteLead, GetAllLeads, GetSingleLead, CreateLpo, UpdateLpo, DeleteLpo, GetAllLpos, GetSingleLpo, GetAllInvoices, GetSingleInvoice, DeleteInvoice, changeInvoiceStatus, updateLeadStatus, GetAllCustomer } = require('../controller/controller.customer');
 const { CreateSupplier, UpdateSupplier, DeleteSupplier, GetAllSuppliers, GetSingleSupplier, CreateProduct, UpdateProduct, DeleteProduct, GetAllProducts, GetSingleProduct, CreateRestock, UpdateRestock, DeleteRestock, GetAllRestocks, GetSingleRestock, CreateBatch, GetAllBatches, GetSingleBatch, UpdateBatch, DeleteBatch, GetAllProductBatch } = require('../controller/controller.product');
 const { uploadLabel, labelTrainWebhook, CreateLabel, GetAllLabels, GetLabel, UpdateLabel, DeleteLabel, verifyLabel } = require('../controller/controller.label');
 const { upload } = require('../core/core.utils');
@@ -103,6 +103,9 @@ router.put('/label/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(
 router.delete('/label/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteLabel );
 router.get('/labels', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllLabels );
 router.get('/label/:id',  GetLabel );
+
+//CUSTOMER
+router.get('/customers', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllCustomer );
 
 /**
  * Export lastly
