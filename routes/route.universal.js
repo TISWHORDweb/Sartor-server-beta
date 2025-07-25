@@ -7,7 +7,7 @@ const express = require('express');
 const router = express.Router();
 const CoreError = require('../core/core.error');
 const { getTasks, singleTask, taskComment, singleTaskComment, taskComments, changeTaskStatus, tasksByStatus } = require('../controller/controller.task');
-const { getUser, deleteUser, singleUser, editUser, allUser, createUser, GetDashboardSummary } = require('../controller/controller.user');
+const { getUser, deleteUser, singleUser, editUser, allUser, createUser, GetDashboardSummary, GetUsersByRole } = require('../controller/controller.user');
 // const { product, singleProduct, allProduct, deleteProduct, editProduct, getAdminProduct, productCategory, singleProductCategory, editProductCategory, allProductCategory, deleteProductCategory, getProductsByCategory } = require('../controller/controller.product');
 const { deleteTasks, CreateTask, editTask } = require('../controller/controller.task');
 const { useAsync } = require('../core');
@@ -15,6 +15,7 @@ const { CreateLead, UpdateLead, DeleteLead, GetAllLeads, GetSingleLead, CreateLp
 const { CreateSupplier, UpdateSupplier, DeleteSupplier, GetAllSuppliers, GetSingleSupplier, CreateProduct, UpdateProduct, DeleteProduct, GetAllProducts, GetSingleProduct, CreateRestock, UpdateRestock, DeleteRestock, GetAllRestocks, GetSingleRestock, CreateBatch, GetAllBatches, GetSingleBatch, UpdateBatch, DeleteBatch, GetAllProductBatch } = require('../controller/controller.product');
 const { uploadLabel, labelTrainWebhook, CreateLabel, GetAllLabels, GetLabel, UpdateLabel, DeleteLabel, verifyLabel } = require('../controller/controller.label');
 const { upload } = require('../core/core.utils');
+const { universalSearch } = require('../controller/controller.search');
 
 
 /**
@@ -28,6 +29,7 @@ router.put('/user/edit',useAsync(authMiddleware), useAsync(roleMiddleware(['admi
 router.get('/users',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), allUser  );
 router.delete('/delete',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), deleteUser  );
 router.get('/user/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), singleUser  );
+router.get('/user/role/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetUsersByRole  );
 router.get('/dashboard', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetDashboardSummary  );
 
 ////TASKS
@@ -109,6 +111,9 @@ router.get('/customers', useAsync(authMiddleware), useAsync(roleMiddleware(['use
 router.put('/customer/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdateCustomer );
 router.delete('/customer/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteCustomer );
 router.get('/customer/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetCustomer );
+
+//UNIVERSAL SEARCH
+router.post('/search', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), universalSearch );
 
 /**
  * Export lastly

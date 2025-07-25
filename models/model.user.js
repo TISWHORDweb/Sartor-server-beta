@@ -37,7 +37,7 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
     },
-    payment: {
+    paymentConfirmation: {
         type: Boolean,
         default: false,
     },
@@ -45,7 +45,7 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
     },
-    lpo: {
+    lpoReconciliation: {
         type: Boolean,
         default: false,
     },
@@ -54,6 +54,50 @@ const userSchema = new mongoose.Schema({
         default: false,
     },
     workflow: {
+        type: Boolean,
+        default: false,
+    },
+    lpoWorkflow: {
+        type: Boolean,
+        default: false,
+    },
+    delivery: {
+        type: Boolean,
+        default: false,
+    },
+    performanceMonitoring: {
+        type: Boolean,
+        default: false,
+    },
+    promotionalManagement: {
+        type: Boolean,
+        default: false,
+    },
+    paymentHandling: {
+        type: Boolean,
+        default: false,
+    },
+    fieldActivity: {
+        type: Boolean,
+        default: false,
+    },
+    visit: {
+        type: Boolean,
+        default: false,
+    },
+    lpoManagement: {
+        type: Boolean,
+        default: false,
+    },
+    marketingResources: {
+        type: Boolean,
+        default: false,
+    },
+    followUp: {
+        type: Boolean,
+        default: false,
+    },
+    paymentVisibility: {
         type: Boolean,
         default: false,
     },

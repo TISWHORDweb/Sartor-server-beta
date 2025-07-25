@@ -1,11 +1,11 @@
 const dotenv = require("dotenv")
 dotenv.config()
 const { useAsync, utils, errorHandle, } = require('../core');
-const { generatePassword, genID } = require("../core/core.utils");
+const { genID } = require("../core/core.utils");
 const bcrypt = require('bcryptjs')
 const CryptoJS = require("crypto-js")
 const sha1 = require('sha1');
-const { EmailNote } = require("../core/core.notify");
+const { generatePasswordWithDate } = require("../core/core.notify");
 const ModelUser = require("../models/model.user");
 const ModelCustomer = require("../models/model.customer");
 const ModelLpoProduct = require("../models/model.lpoProduct");
@@ -13,6 +13,7 @@ const ModelLpo = require("../models/model.lpo");
 const ModelProduct = require("../models/model.product");
 const ModelLead = require("../models/model.lead");
 const ModelTask = require("../models/model.task");
+const EmailService = require("../services");
 
 
 exports.editUser = useAsync(async (req, res) => {
@@ -59,16 +60,79 @@ exports.singleUser = useAsync(async (req, res) => {
     }
 })
 
-
 exports.allUser = useAsync(async (req, res) => {
-
     try {
-        const user = await ModelUser.find();
-        return res.json(utils.JParser('All User fetch successfully', !!user, user));
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+
+        const query = ModelUser.find({ userRole: { $ne: 'admin' } })
+            .select('-password') // Exclude password field
+            .lean();
+
+        if (limit !== null) query.skip(skip).limit(limit);
+        const users = await query.exec();
+
+        const response = utils.JParser('Users fetched successfully', !!users, { data: users });
+
+        if (limit !== null) {
+            const totalUsers = await ModelUser.countDocuments({ userRole: { $ne: 'admin' } });
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalUsers / limit),
+                totalUsers,
+                limit
+            };
+        }
+
+        return res.json(response);
     } catch (e) {
-        throw new errorHandle(e.message, 400)
+        throw new errorHandle(e.message, 500);
     }
-})
+});
+
+// Get users by specific role (sales rep, manager, etc.)
+exports.GetUsersByRole = useAsync(async (req, res) => {
+    try {
+        const role = req.params.id;
+        const validRoles = ["Manager", "Admin", "Sales Rep", "Inventory Manager", "Merchandiser"];
+
+        if (!validRoles.includes(role)) {
+            return res.status(400).json(utils.JParser('Invalid user role specified', false, []));
+        }
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+
+        const query = ModelUser.find({ role })
+            .select('-password') // Exclude password field
+            .lean();
+
+        if (limit !== null) query.skip(skip).limit(limit);
+        const users = await query.exec();
+
+        const response = utils.JParser(`Users with ${role} role fetched successfully`, !!users, {
+            data: users,
+            role: role
+        });
+
+        if (limit !== null) {
+            const totalUsers = await ModelUser.countDocuments({ role });
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalUsers / limit),
+                totalUsers,
+                limit
+            };
+        }
+
+        return res.json(response);
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
 
 exports.deleteUser = useAsync(async (req, res) => {
     try {
@@ -89,43 +153,45 @@ exports.createUser = useAsync(async (req, res) => {
 
     try {
 
-        const Password = await generatePassword(9);
+        req.body.adminID = req.userId
+
+        if (!req.body.email, !req.body.role, !req.body.phone) return res.json(utils.JParser('please check the fields', false, []));
         const userId = await genID(1);
-
-        if (Password) {
-            req.body.password = await bcrypt.hash(Password, 13)
-        }
-
-        if (!req.body.email || !req.body.password) return res.json(utils.JParser('please check the fields', false, []));
-
-        req.body.userId = userId
-        req.body.userRole = "user"
         req.body.token = sha1(req.body.email + new Date())
         req.body.lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
+        req.body.userId = userId
+
 
         const validates = await ModelUser.findOne({ email: req.body.email })
         if (validates) {
             return res.json(utils.JParser('There is another user with this email', false, []));
         } else {
 
-            let user = await new ModelUser(req.body)
-            const email = req.body.email
-            const body = {
-                email: email,
-                name: '',
-                body: `Congratulastion an account has been created for you as ${user.role} in sator kindly use your login with your email and the following password - ${Password}`,
-                subject: "Account creation"
+            const generateNewPassword = await generatePasswordWithDate(req.body.fullName)
+
+            if (generateNewPassword) {
+                req.body.password = await bcrypt.hash(generateNewPassword, 13)
+
+                let user = await new ModelUser(req.body)
+
+                await user.save().then(data => {
+
+                    data.password = "********************************"
+
+                    const emailData = {
+                        email: data.email,
+                        name: data.fullName,
+                        password: generateNewPassword
+                    }
+
+                    EmailService.sendNewEmployeeCredentials(emailData)
+
+                    return res.json(utils.JParser('Congratulation Account created successfully', !!data, data));
+
+                })
+            } else {
+                return res.status(400).json(utils.JParser('Unknown error occured, Try again later', false, []));
             }
-
-            await user.save().then(data => {
-
-                data.password = "********************************"
-
-                EmailNote(body.email, body.name, body.body, body.subject)
-
-                return res.json(utils.JParser('Congratulation Account created successfully', !!data, data));
-
-            })
         }
     } catch (e) {
         throw new errorHandle(e.message, 400)
@@ -210,7 +276,7 @@ exports.GetDashboardSummary = useAsync(async (req, res) => {
             {
                 $lookup: {
                     from: "modelbatches",
-                    localField: "batch", 
+                    localField: "batch",
                     foreignField: "_id",
                     as: "batchDetails"
                 }

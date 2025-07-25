@@ -20,7 +20,6 @@ const request = require('request');
 const { notify, genID } = require('../core/core.utils');
 const { useAsync, utils, errorHandle, } = require('./../core');
 // const MindCastFavourite = require('../models/model.favourites')
-const { EmailNote } = require('../core/core.notify')
 const ModelUser = require('../models/model.user')
 
 
@@ -38,7 +37,7 @@ exports.UserRegister = useAsync(async (req, res) => {
         req.body.token = sha1(req.body.email + new Date())
         req.body.lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
         req.body.userRole = "admin"
-        req.body.role = "Admin"
+        req.body.role = "Super-Admin"
         req.body.userId = userId
 
 
