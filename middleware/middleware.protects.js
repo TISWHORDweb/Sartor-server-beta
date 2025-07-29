@@ -43,7 +43,7 @@ exports.authMiddleware = useAsync(async (req, res, next) => {
       .json(utils.JParser("Corrupted last login timestamp", false, []));
   }
 
-  const oneHour = 120 * 120 * 1000; // 4 hours, confirm if this is intentional
+  const oneHour = 1440 * 1440 * 1000; // 4 hours, confirm if this is intentional
 
   if ((new Date() - lastLogin) > oneHour) {
     return res
