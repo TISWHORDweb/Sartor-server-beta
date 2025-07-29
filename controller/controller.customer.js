@@ -98,7 +98,7 @@ exports.GetAllLpos = useAsync(async (req, res) => {
         const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
         const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
 
-        const query = ModelLpo.find().lean().populate('lead');
+        const query = ModelLpo.find().populate('lead').lean();
         if (limit !== null) {
             query.skip(skip).limit(limit);
         }
@@ -196,6 +196,67 @@ exports.GetSingleLpo = useAsync(async (req, res) => {
 
     } catch (e) {
         throw new errorHandle(e.message, 500);
+    }
+});
+
+
+exports.updateLPOStatus = useAsync(async (req, res) => {
+    try {
+        const { status, id } = req.body;
+
+        if (!status) {
+            throw new errorHandle('Status is required', 400);
+        }
+
+        const lpo = await ModelLpo.findById(id);
+        if (!lpo) {
+            throw new errorHandle('LPO not found', 404);
+        }
+
+        const updatedLPO = await ModelLpo.findByIdAndUpdate(
+            id,
+            { 
+                status,
+                updated_at: Date.now() 
+            },
+            { new: true }
+        );
+
+        if (status === "Delivered") {
+            // Check if this lead already exists as a customer
+            const existingCustomer = await ModelCustomer.findOne({ lead: lpo.lead });
+            
+            if (!existingCustomer) {
+                // Generate customer ID (you can customize this logic)
+                const customerId = await genID(3)
+                
+                // Create new customer
+                const newCustomer = await ModelCustomer.create({
+                    lead: lpo.lead,
+                    customerId,
+                    status: "Active"
+                });
+
+            }
+        }
+
+        // Prepare response
+        let response = {
+            lead: updatedLPO,
+            message: 'Lead status updated successfully'
+        };
+
+        // Add customer info if qualified
+        if (status === "Delivered") {
+            const customer = await ModelCustomer.findOne({ lead: lpo.lead });
+            response.customer = customer;
+            response.message += ' and customer created';
+        }
+
+        return res.json(utils.JParser(response.message, true, response));
+
+    } catch (e) {
+        throw new errorHandle(e.message, 400);
     }
 });
 
@@ -395,36 +456,11 @@ exports.updateLeadStatus = useAsync(async (req, res) => {
             { new: true }
         );
 
-        if (status === "Qualified") {
-            // Check if this lead already exists as a customer
-            const existingCustomer = await ModelCustomer.findOne({ lead: id });
-            
-            if (!existingCustomer) {
-                // Generate customer ID (you can customize this logic)
-                const customerId = await genID(3)
-                
-                // Create new customer
-                const newCustomer = await ModelCustomer.create({
-                    lead: id,
-                    customerId,
-                    status: "Active"
-                });
-
-            }
-        }
-
         // Prepare response
         let response = {
             lead: updatedLead,
             message: 'Lead status updated successfully'
         };
-
-        // Add customer info if qualified
-        if (status === "Qualified") {
-            const customer = await ModelCustomer.findOne({ lead: id });
-            response.customer = customer;
-            response.message += ' and customer created';
-        }
 
         return res.json(utils.JParser(response.message, true, response));
 
