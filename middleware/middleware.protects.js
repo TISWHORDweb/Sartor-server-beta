@@ -28,7 +28,7 @@ exports.authMiddleware = useAsync(async (req, res, next) => {
 
   if (!isValid) {
     return res
-      .status(400)
+      .status(401)
       .json(utils.JParser("Invalid token code or token, Use a valid token and try again", false, []));
   }
 
@@ -39,7 +39,7 @@ exports.authMiddleware = useAsync(async (req, res, next) => {
     lastLogin = new Date(JSON.parse(lastLogin));
   } catch (e) {
     return res
-      .status(400)
+      .status(401)
       .json(utils.JParser("Corrupted last login timestamp", false, []));
   }
 
@@ -53,7 +53,7 @@ exports.authMiddleware = useAsync(async (req, res, next) => {
 
   if (isValid.blocked) {
     return res
-      .status(400)
+      .status(402)
       .json(utils.JParser("Token is valid but not authorized for this route", false, []));
   }
 
