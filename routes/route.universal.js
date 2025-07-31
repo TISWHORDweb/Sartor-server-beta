@@ -27,7 +27,7 @@ router.post('/user/create',useAsync(authMiddleware), useAsync(roleMiddleware(['a
 router.get('/user/details', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), getUser);
 router.put('/user/edit',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), editUser  );
 router.get('/users',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), allUser  );
-router.delete('/delete',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), deleteUser  );
+router.delete('/user/delete',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), deleteUser  );
 router.get('/user/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), singleUser  );
 router.get('/user/role/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetUsersByRole  );
 router.get('/dashboard', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetDashboardSummary  );
