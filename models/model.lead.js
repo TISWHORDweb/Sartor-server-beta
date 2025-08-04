@@ -18,7 +18,6 @@ const leadSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ["Pharmacy  ", "Clinic"],
     },
     image: {
         type: String,

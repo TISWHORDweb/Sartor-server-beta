@@ -180,12 +180,14 @@ exports.uploadLabel = useAsync(async (req, res) => {
                     contentType: req.file.mimetype
                 });
             }
-
+ 
             const apiResponse = await axios.post(
                 `${process.env.LABEL_BASE_URL}/upload-labels`,
                 form,
                 { headers: form.getHeaders() }
             );
+            console.log("console.log "+apiResponse);
+            
 
             if (apiResponse.data?.modified_images?.length > 0) {
 
@@ -228,6 +230,8 @@ exports.uploadLabel = useAsync(async (req, res) => {
             return res.status(400).json(utils.JParser('Label not found', false, []));
         }
     } catch (e) {
+        console.log(e);
+        
         throw new errorHandle(e.message, 500);
     }
 });
@@ -239,7 +243,7 @@ exports.verifyLabel = useAsync(async (req, res) => {
         const form = new FormData();
 
         if (req.file) {
-            form.append('images', fs.createReadStream(req.file.path), {
+            form.append('image', fs.createReadStream(req.file.path), {
                 filename: req.file.originalname,
                 contentType: req.file.mimetype
             });
