@@ -7,7 +7,7 @@ const express = require('express');
 const router = express.Router();
 const CoreError = require('../core/core.error');
 const { getTasks, singleTask, taskComment, singleTaskComment, taskComments, changeTaskStatus, tasksByStatus } = require('../controller/controller.task');
-const { getUser, deleteUser, singleUser, editUser, allUser, createUser, GetDashboardSummary, GetUsersByRole } = require('../controller/controller.user');
+const { getUser, deleteUser, singleUser, editUser, allUser, createUser, GetDashboardSummary, GetUsersByRole, CreateContact, GetAllContacts, GetContact, UpdateContact, DeleteContact } = require('../controller/controller.user');
 // const { product, singleProduct, allProduct, deleteProduct, editProduct, getAdminProduct, productCategory, singleProductCategory, editProductCategory, allProductCategory, deleteProductCategory, getProductsByCategory } = require('../controller/controller.product');
 const { deleteTasks, CreateTask, editTask } = require('../controller/controller.task');
 const { useAsync } = require('../core');
@@ -115,6 +115,13 @@ router.get('/customer/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['
 
 //UNIVERSAL SEARCH
 router.post('/search', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), universalSearch );
+
+//BATCH
+router.post('/contact', useAsync(authMiddleware), CreateContact );
+router.put('/contact/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdateContact );
+router.delete('/contact/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteContact );
+router.get('/contacts', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllContacts );
+router.get('/contact/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetContact );
 
 /**
  * Export lastly

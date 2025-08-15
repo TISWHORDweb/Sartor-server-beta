@@ -14,6 +14,7 @@ const ModelProduct = require("../models/model.product");
 const ModelLead = require("../models/model.lead");
 const ModelTask = require("../models/model.task");
 const EmailService = require("../services");
+const ModelContact = require("../models/model.contact");
 
 
 exports.editUser = useAsync(async (req, res) => {
@@ -380,6 +381,85 @@ exports.GetDashboardSummary = useAsync(async (req, res) => {
 
         return res.json(response);
 
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// CREATE Contact
+exports.CreateContact = useAsync(async (req, res) => {
+    try {
+        const contact = await ModelContact.create(req.body);
+
+        // Send email (already have email function)
+        // await sendEmail(contact.businessEmail, "Thanks for contacting us", "We have received your message and will get back to you soon.");
+
+        return res.json(utils.JParser('Contact created successfully', true,  contact ));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+// GET All Contacts with Pagination
+exports.GetAllContacts = useAsync(async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+
+        const query = ModelContact.find().lean();
+
+        if (limit !== null) query.skip(skip).limit(limit);
+        const contacts = await query.exec();
+
+        const response = utils.JParser('Contacts fetched successfully', !!contacts, { data: contacts });
+
+        if (limit !== null) {
+            const totalContacts = await ModelContact.countDocuments();
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalContacts / limit),
+                totalContacts,
+                limit
+            };
+        }
+
+        return res.json(response);
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+// GET Single Contact
+exports.GetContact = useAsync(async (req, res) => {
+    try {
+        const contact = await ModelContact.findById(req.params.id).lean();
+        if (!contact) throw new errorHandle("Contact not found", 404);
+        return res.json(utils.JParser('Contact fetched successfully', true, { data: contact }));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+// UPDATE Contact
+exports.UpdateContact = useAsync(async (req, res) => {
+    try {
+        const updated = await ModelContact.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        if (!updated) throw new errorHandle("Contact not found", 404);
+        return res.json(utils.JParser('Contact updated successfully', true, { data: updated }));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+// DELETE Contact
+exports.DeleteContact = useAsync(async (req, res) => {
+    try {
+        const deleted = await ModelContact.findByIdAndDelete(req.params.id);
+        if (!deleted) throw new errorHandle("Contact not found", 404);
+        return res.json(utils.JParser('Contact deleted successfully', true));
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }
