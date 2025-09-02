@@ -37,6 +37,11 @@ const leadSchema = new mongoose.Schema({
     stores: {
         type: Number,
     },
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-user',
+        required: true
+    },
     userId: {
         type: String,
     },

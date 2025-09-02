@@ -11,7 +11,7 @@ const { getUser, deleteUser, singleUser, editUser, allUser, createUser, GetDashb
 // const { product, singleProduct, allProduct, deleteProduct, editProduct, getAdminProduct, productCategory, singleProductCategory, editProductCategory, allProductCategory, deleteProductCategory, getProductsByCategory } = require('../controller/controller.product');
 const { deleteTasks, CreateTask, editTask } = require('../controller/controller.task');
 const { useAsync } = require('../core');
-const { CreateLead, UpdateLead, DeleteLead, GetAllLeads, GetSingleLead, CreateLpo, UpdateLpo, DeleteLpo, GetAllLpos, GetSingleLpo, GetAllInvoices, GetSingleInvoice, DeleteInvoice, changeInvoiceStatus, updateLeadStatus, GetAllCustomer, UpdateCustomer, DeleteCustomer, GetCustomer, updateLPOStatus } = require('../controller/controller.customer');
+const { CreateLead, UpdateLead, DeleteLead, GetAllLeads, GetSingleLead, CreateLpo, UpdateLpo, DeleteLpo, GetAllLpos, GetSingleLpo, GetAllInvoices, GetSingleInvoice, DeleteInvoice, changeInvoiceStatus, updateLeadStatus, GetAllCustomer, UpdateCustomer, DeleteCustomer, GetCustomer, updateLPOStatus, GetAllUserLeads, GetAllUserLpos, GetAllUserCustomer, GetAllUserInvoices } = require('../controller/controller.customer');
 const { CreateSupplier, UpdateSupplier, DeleteSupplier, GetAllSuppliers, GetSingleSupplier, CreateProduct, UpdateProduct, DeleteProduct, GetAllProducts, GetSingleProduct, CreateRestock, UpdateRestock, DeleteRestock, GetAllRestocks, GetSingleRestock, CreateBatch, GetAllBatches, GetSingleBatch, UpdateBatch, DeleteBatch, GetAllProductBatch } = require('../controller/controller.product');
 const { uploadLabel, labelTrainWebhook, CreateLabel, GetAllLabels, GetLabel, UpdateLabel, DeleteLabel, verifyLabel } = require('../controller/controller.label');
 const { upload } = require('../core/core.utils');
@@ -53,6 +53,7 @@ router.delete('/lead/delete/:id', useAsync(authMiddleware), useAsync(roleMiddlew
 router.get('/leads', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllLeads );
 router.get('/lead/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleLead );
 router.put('/lead/status/update', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), updateLeadStatus );
+router.get('/lead/user/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllUserLeads );
 
 //LPO
 router.post('/lpo', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateLpo );
@@ -61,6 +62,7 @@ router.delete('/lpo/delete/:id', useAsync(authMiddleware), useAsync(roleMiddlewa
 router.get('/lpos', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllLpos );
 router.get('/lpo/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleLpo );
 router.put('/lpo/status/update', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), updateLPOStatus );
+router.get('/lpo/user/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllUserLpos );
 
 //SUPPLIER
 router.post('/supplier', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateSupplier );
@@ -89,6 +91,7 @@ router.delete('/invoice/delete/:id', useAsync(authMiddleware), useAsync(roleMidd
 router.get('/invoices', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllInvoices );
 router.get('/invoice/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleInvoice );
 router.put('/invoice/status/update', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), changeInvoiceStatus );
+router.get('/invoice/user/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllUserInvoices );
 
 //BATCH
 router.post('/batch', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateBatch );
@@ -112,6 +115,7 @@ router.get('/customers', useAsync(authMiddleware), useAsync(roleMiddleware(['use
 router.put('/customer/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])),  UpdateCustomer );
 router.delete('/customer/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteCustomer );
 router.get('/customer/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetCustomer );
+router.get('/customer/user/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllUserCustomer );
 
 //UNIVERSAL SEARCH
 router.post('/search', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), universalSearch );

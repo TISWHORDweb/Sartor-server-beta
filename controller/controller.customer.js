@@ -11,6 +11,7 @@ const ModelLpo = require("../models/model.lpo");
 const ModelLpoProduct = require("../models/model.lpoProduct");
 const ModelInvoice = require("../models/model.invoice");
 const ModelCustomer = require("../models/model.customer");
+const { Types } = require('mongoose');
 
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -45,7 +46,7 @@ exports.CreateLpo = useAsync(async (req, res) => {
         return res.json(utils.JParser('LPO created successfully', !!lpo, { lpo, products: createdProducts || [], invoice }));
 
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -68,7 +69,7 @@ exports.UpdateLpo = useAsync(async (req, res) => {
         return res.json(utils.JParser('LPO updated successfully', !!updatedLpo, updatedLpo));
 
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -87,7 +88,7 @@ exports.DeleteLpo = useAsync(async (req, res) => {
         return res.json(utils.JParser('LPO deleted successfully', !!deletedLpo, deletedLpo));
 
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -110,26 +111,26 @@ exports.GetAllLpos = useAsync(async (req, res) => {
         const productsByLpoId = products.reduce((acc, product) => {
             if (!product.lpo) return acc;
             if (!acc[product.lpo]) acc[product.lpo] = [];
-            
+
             const quantity = parseFloat(product.quantity) || 0;
-            const unitPrice = (product.product && !isNaN(parseFloat(product.product.unitPrice))) 
-                ? parseFloat(product.product.unitPrice) 
+            const unitPrice = (product.product && !isNaN(parseFloat(product.product.unitPrice)))
+                ? parseFloat(product.product.unitPrice)
                 : 0;
 
             const productAmount = unitPrice * quantity;
-            
+
             acc[product.lpo].push({
                 ...product.toObject(),
                 amount: productAmount,
                 quantity: quantity
             });
-            
+
             return acc;
         }, {});
 
         const lposWithProducts = lpos.map(lpo => {
             const lpoProducts = productsByLpoId[lpo._id] || [];
-            
+
             const totalAmount = lpoProducts.reduce((sum, product) => {
                 return sum + (product.amount || 0);
             }, 0);
@@ -156,15 +157,122 @@ exports.GetAllLpos = useAsync(async (req, res) => {
         return res.json(response);
 
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
+exports.GetAllUserLpos = useAsync(async (req, res) => {
+    try {
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+
+        const userObjectId = Types.ObjectId(req.params.id);
+
+        // Find leads first, then LPOs
+        const userLeads = await ModelLead.find({ user: userObjectId }).select('_id');
+        const leadIds = userLeads.map(lead => lead._id);
+
+        if (leadIds.length === 0) {
+            // No leads found for this user
+            const response = utils.JParser('No LPOs found for this user', true, {
+                lpos: [],
+                pagination: limit !== null ? {
+                    currentPage: page,
+                    totalPages: 0,
+                    totalLpos: 0,
+                    limit
+                } : undefined
+            });
+            return res.json(response);
+        }
+
+        // Build query to find LPOs with these lead IDs
+        const lposQuery = ModelLpo.find({ lead: { $in: leadIds } })
+            .populate('lead');
+
+        let lpos;
+        let totalLpos;
+
+        if (limit !== null) {
+            lpos = await lposQuery
+                .skip(skip)
+                .limit(limit)
+                .lean();
+
+            totalLpos = await ModelLpo.countDocuments({ lead: { $in: leadIds } });
+        } else {
+            lpos = await lposQuery.lean();
+        }
+
+        // Get products for all LPOs
+        const lpoIds = lpos.map(lpo => lpo._id);
+        const products = await ModelLpoProduct.find({ lpo: { $in: lpoIds } }).populate('product');
+
+        // Organize products by LPO ID
+        const productsByLpoId = products.reduce((acc, product) => {
+            if (!product.lpo) return acc;
+            if (!acc[product.lpo]) acc[product.lpo] = [];
+
+            const quantity = parseFloat(product.quantity) || 0;
+            const unitPrice = (product.product && !isNaN(parseFloat(product.product.unitPrice)))
+                ? parseFloat(product.product.unitPrice)
+                : 0;
+
+            const productAmount = unitPrice * quantity;
+
+            acc[product.lpo].push({
+                ...product.toObject(),
+                amount: productAmount,
+                quantity: quantity
+            });
+
+            return acc;
+        }, {});
+
+        // Add products and calculate totals for each LPO
+        const lposWithProducts = lpos.map(lpo => {
+            const lpoProducts = productsByLpoId[lpo._id] || [];
+
+            const totalAmount = lpoProducts.reduce((sum, product) => {
+                return sum + (product.amount || 0);
+            }, 0);
+
+            return {
+                ...lpo,
+                products: lpoProducts,
+                totalAmount: parseFloat(totalAmount.toFixed(2))
+            };
+        });
+
+        // Build response
+        const response = utils.JParser('LPOs fetched successfully', true, {
+            lpos: lposWithProducts
+        });
+
+        // Add pagination info if limit is applied
+        if (limit !== null) {
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalLpos / limit),
+                totalLpos,
+                limit
+            };
+        }
+
+        return res.json(response);
+
+    } catch (e) {
+        console.error('Error in GetAllUserLpos:', e);
+        throw new errorHandle(e.message, 500);
+    }
+});
 
 exports.GetSingleLpo = useAsync(async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         const lpo = await ModelLpo.findById(id).lean().populate('lead');
 
         if (!lpo) {
@@ -215,9 +323,9 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
 
         const updatedLPO = await ModelLpo.findByIdAndUpdate(
             id,
-            { 
+            {
                 status,
-                updated_at: Date.now() 
+                updated_at: Date.now()
             },
             { new: true }
         );
@@ -225,11 +333,11 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
         if (status === "Delivered") {
             // Check if this lead already exists as a customer
             const existingCustomer = await ModelCustomer.findOne({ lead: lpo.lead });
-            
+
             if (!existingCustomer) {
                 // Generate customer ID (you can customize this logic)
                 const customerId = await genID(3)
-                
+
                 // Create new customer
                 const newCustomer = await ModelCustomer.create({
                     lead: lpo.lead,
@@ -271,6 +379,7 @@ exports.CreateLead = useAsync(async (req, res) => {
         const schema = Joi.object({
             name: Joi.string().min(3).required(),
             address: Joi.string().min(3).required(),
+            user: Joi.string().required(),
             email: Joi.string().min(3).required(),
             phone: Joi.string().min(3).optional(),
             state: Joi.string().min(3).required(),
@@ -310,7 +419,7 @@ exports.CreateLead = useAsync(async (req, res) => {
         }));
 
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -339,7 +448,7 @@ exports.UpdateLead = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Lead updated successfully', !!updatedLead, updatedLead));
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -357,7 +466,7 @@ exports.DeleteLead = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Lead deleted successfully', !!deletedLead, []));
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -405,7 +514,55 @@ exports.GetAllLeads = useAsync(async (req, res) => {
         return res.json(response);
 
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+exports.GetAllUserLeads = useAsync(async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1; // Current page (default: 1)
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+
+        const query = ModelLead.find({ user: req.params.id }).lean();
+        if (limit !== null) {
+            query.skip(skip).limit(limit);
+        }
+        const leads = await query.exec();
+
+        // 2. Get all contacts for these leads in a single query
+        const leadIds = leads.map(lead => lead._id);
+        const contacts = await ModelLeadContact.find({ lead: { $in: leadIds } });
+
+        // 3. Group contacts by lead
+        const contactsByLeadId = contacts.reduce((acc, contact) => {
+            if (!acc[contact.lead]) acc[contact.lead] = [];
+            acc[contact.lead].push(contact);
+            return acc;
+        }, {});
+
+        // 4. Attach contacts to leads
+        const leadsWithContacts = leads.map(lead => ({
+            ...lead,
+            contacts: contactsByLeadId[lead._id] || []
+        }));
+
+        const response = utils.JParser('Leads fetched successfully', true, { leads: leadsWithContacts })
+
+        if (limit !== null) {
+            const totalLeads = await ModelLead.countDocuments();
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalLeads / limit),
+                totalLeads,
+                limit
+            };
+        }
+
+        return res.json(response);
+
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -429,14 +586,14 @@ exports.GetSingleLead = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Lead fetched successfully', !!leadWithContacts, leadWithContacts));
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
 exports.updateLeadStatus = useAsync(async (req, res) => {
     try {
         const { status, id } = req.body;
-        const userId = req.userId; 
+        const userId = req.userId;
 
         if (!status) {
             throw new errorHandle('Status is required', 400);
@@ -449,9 +606,9 @@ exports.updateLeadStatus = useAsync(async (req, res) => {
 
         const updatedLead = await ModelLead.findByIdAndUpdate(
             id,
-            { 
+            {
                 status,
-                updated_at: Date.now() 
+                updated_at: Date.now()
             },
             { new: true }
         );
@@ -475,6 +632,7 @@ exports.updateLeadStatus = useAsync(async (req, res) => {
 
 const createInvoiceFromLpo = async (lpoId) => {
     try {
+
         const lpo = await ModelLpo.findById(lpoId).populate('lead');
 
         const lpoProducts = await ModelLpoProduct.find({ lpo: lpoId }).populate('product');
@@ -504,6 +662,7 @@ const createInvoiceFromLpo = async (lpoId) => {
         const invoice = await ModelInvoice.create({
             lpo: lpoId,
             lead: lpo.lead._id,
+            user: lpo.lead.user,
             name: lpo.lead.name, // Assuming lead has a name property
             dueDate: dueDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
             totalAmount: totalAmount.toString(),
@@ -547,7 +706,39 @@ exports.GetAllInvoices = useAsync(async (req, res) => {
         return res.json(response);
 
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+
+exports.GetAllUserInvoices = useAsync(async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1; // Current page (default: 1)
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+
+        const query = ModelInvoice.find({user: req.params.id}).populate("lead").populate("lpo").populate("user").lean();
+        if (limit !== null) {
+            query.skip(skip).limit(limit);
+        }
+        const invoices = await query.exec();
+
+        const response = utils.JParser('Invoice fetched successfully', true, { invoices })
+
+        if (limit !== null) {
+            const totalInvoice = await ModelInvoice.countDocuments();
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalInvoice / limit),
+                totalInvoice,
+                limit
+            };
+        }
+
+        return res.json(response);
+
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -562,7 +753,7 @@ exports.GetSingleInvoice = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Invoice fetched successfully', !!invoice, invoice));
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -577,7 +768,7 @@ exports.DeleteInvoice = useAsync(async (req, res) => {
 
         return res.json(utils.JParser('Invoice deleted successfully', !!deletedInvoice, []));
     } catch (e) {
-       throw new errorHandle(e.message, 500);
+        throw new errorHandle(e.message, 500);
     }
 });
 
@@ -637,6 +828,65 @@ exports.GetAllCustomer = useAsync(async (req, res) => {
     }
 });
 
+exports.GetAllUserCustomer = useAsync(async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+        
+        const userObjectId = Types.ObjectId(req.params.id);
+        const userLeads = await ModelLead.find({ user: userObjectId }).select('_id');
+
+        const leadIds = userLeads.map(lead => lead._id);
+
+        if (leadIds.length === 0) {
+            const response = utils.JParser('No Customer found for this user', true, {
+                customer: [], 
+                pagination: limit !== null ? {
+                    currentPage: page,
+                    totalPages: 0,
+                    totalCustomers: 0,
+                    limit
+                } : undefined
+            });
+            return res.json(response);
+        }
+
+        const query = ModelCustomer.find({ lead: { $in: leadIds } })
+            .populate('lead')
+            .lean();
+
+        if (limit !== null) {
+            query.skip(skip).limit(limit);
+        }
+        
+        const customer = await query.exec();
+        console.log('Found customers:', customer.length);
+
+        const response = utils.JParser('Customer fetched successfully', !!customer, { 
+            customer: customer
+        });
+
+        if (limit !== null) {
+            const totalCustomers = await ModelCustomer.countDocuments({ 
+                lead: { $in: leadIds } 
+            });
+            
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalCustomers / limit),
+                totalCustomers,
+                limit
+            };
+        }
+
+        return res.json(response);
+    } catch (e) {
+        console.error('Error in GetAllUserCustomer:', e);
+        throw new errorHandle(e.message, 500);
+    }
+});
+
 exports.GetCustomer = useAsync(async (req, res) => {
     try {
         const customer = await ModelCustomer.findById(req.params.id).populate('lead').lean();
@@ -649,7 +899,7 @@ exports.GetCustomer = useAsync(async (req, res) => {
 });
 
 
-exports.UpdateCustomer= useAsync(async (req, res) => {
+exports.UpdateCustomer = useAsync(async (req, res) => {
     try {
         const updatedCustomer = await ModelCustomer.findByIdAndUpdate(
             req.params.id,
