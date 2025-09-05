@@ -193,7 +193,7 @@ exports.createUser = useAsync(async (req, res) => {
                         password: generateNewPassword
                     }
 
-                    EmailService.sendNewEmployeeCredentials(emailData)
+                    // EmailService.sendNewEmployeeCredentials(emailData)
 
                     return res.json(utils.JParser('Congratulation Account created successfully', !!data, data));
 
