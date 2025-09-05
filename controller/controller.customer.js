@@ -12,6 +12,8 @@ const ModelLpoProduct = require("../models/model.lpoProduct");
 const ModelInvoice = require("../models/model.invoice");
 const ModelCustomer = require("../models/model.customer");
 const { Types } = require('mongoose');
+const ModelBatch = require("../models/model.batch");
+const ModelCommission = require("../models/moddel.commision");
 
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -76,14 +78,21 @@ exports.UpdateLpo = useAsync(async (req, res) => {
 exports.DeleteLpo = useAsync(async (req, res) => {
     try {
         const { id } = req.params;
-        const deletedLpo = await ModelLpo.findByIdAndDelete(id);
+        const deletedLpo = await ModelLpo.findByIdAndUpdate(
+            id,
+            {
+                isDeleted: false,
+                updated_at: Date.now()
+            },
+            { new: true }
+        );;
 
         if (!deletedLpo) {
             return res.status(404).json(utils.JParser('LPO not found', false, null));
         }
 
         // Optional: Delete associated products
-        await ModelLpoProduct.deleteMany({ lpo: id });
+        // await ModelLpoProduct.deleteMany({ lpo: id });
 
         return res.json(utils.JParser('LPO deleted successfully', !!deletedLpo, deletedLpo));
 
@@ -321,6 +330,29 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
             throw new errorHandle('LPO not found', 404);
         }
 
+        // Check stock availability before any updates if status is "In Transit"
+        if (status === "In Transit") {
+            const lpoProducts = await ModelLpoProduct.find({ lpo: id }).populate('product');
+            
+            for (const lpoProduct of lpoProducts) {
+                const productId = lpoProduct.product;
+                const quantityToDeduct = lpoProduct.quantity;
+                
+                // Calculate total available quantity across all batches
+                const batches = await ModelBatch.find({ 
+                    product: productId,
+                    quantity: { $gt: 0 }
+                }).sort({ createdAt: 1 });
+                
+                const totalAvailableQuantity = batches.reduce((total, batch) => total + batch.quantity, 0);
+                
+                if (totalAvailableQuantity < quantityToDeduct) {
+                    throw new errorHandle(`Insufficient stock for this product. Requested: ${quantityToDeduct}, Available: ${totalAvailableQuantity}`, 400);
+                }
+            }
+        }
+
+        // Only update status if stock validation passes
         const updatedLPO = await ModelLpo.findByIdAndUpdate(
             id,
             {
@@ -330,21 +362,48 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
             { new: true }
         );
 
+        const existingCustomer = await ModelCustomer.findOne({ lead: lpo.lead });
+
         if (status === "Delivered") {
-            // Check if this lead already exists as a customer
-            const existingCustomer = await ModelCustomer.findOne({ lead: lpo.lead });
-
             if (!existingCustomer) {
-                // Generate customer ID (you can customize this logic)
                 const customerId = await genID(3)
-
-                // Create new customer
                 const newCustomer = await ModelCustomer.create({
                     lead: lpo.lead,
                     customerId,
                     status: "Active"
                 });
-
+            }
+        } 
+        
+        if (status === "In Transit") {
+            const lpoProducts = await ModelLpoProduct.find({ lpo: id }).populate('product');
+            
+            for (const lpoProduct of lpoProducts) {
+                const productId = lpoProduct.product;
+                const quantityToDeduct = lpoProduct.quantity;
+                
+                const batches = await ModelBatch.find({ 
+                    product: productId,
+                    quantity: { $gt: 0 }
+                }).sort({ createdAt: 1 });
+                
+                let remainingQuantity = quantityToDeduct;
+                
+                for (const batch of batches) {
+                    if (remainingQuantity <= 0) break;
+                    
+                    const quantityInThisBatch = batch.quantity;
+                    
+                    if (quantityInThisBatch >= remainingQuantity) {
+                        batch.quantity -= remainingQuantity;
+                        remainingQuantity = 0;
+                    } else {
+                        remainingQuantity -= quantityInThisBatch;
+                        batch.quantity = 0;
+                    }
+                    
+                    await batch.save();
+                }
             }
         }
 
@@ -354,8 +413,7 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
             message: 'Lead status updated successfully'
         };
 
-        // Add customer info if qualified
-        if (status === "Delivered") {
+        if (status === "Delivered" && !existingCustomer) {
             const customer = await ModelCustomer.findOne({ lead: lpo.lead });
             response.customer = customer;
             response.message += ' and customer created';
@@ -455,14 +513,21 @@ exports.UpdateLead = useAsync(async (req, res) => {
 exports.DeleteLead = useAsync(async (req, res) => {
     try {
         const { id } = req.params;
-        const deletedLead = await ModelLead.findByIdAndDelete(id);
+        const deletedLead = await ModelLead.findByIdAndUpdate(
+            id,
+            {
+                isDeleted: false,
+                updated_at: Date.now()
+            },
+            { new: true }
+        );;
 
         if (!deletedLead) {
             return res.status(404).json(utils.JParser('Lead not found', false, null));
         }
 
         // Optional: Delete associated contacts
-        await ModelLeadContact.deleteMany({ lead: id });
+        // await ModelLeadContact.deleteMany({ lead: id });
 
         return res.json(utils.JParser('Lead deleted successfully', !!deletedLead, []));
     } catch (e) {
@@ -629,7 +694,6 @@ exports.updateLeadStatus = useAsync(async (req, res) => {
 //////////////////////////////////////////////////////////////////////////////////////
 ////INVOICE ROUTES
 //////////////////////////////////////////////////////////////////////////////////////
-
 const createInvoiceFromLpo = async (lpoId) => {
     try {
 
@@ -647,7 +711,7 @@ const createInvoiceFromLpo = async (lpoId) => {
 
         lpoProducts.forEach(item => {
             const quantity = parseFloat(item.quantity) || 0;
-            const price = parseFloat(parseInt(item?.product?.unit || 0)) || 0;
+            const price = item?.product?.price || 0
             totalAmount += quantity * price;
             totalQty += quantity;
         });
@@ -717,7 +781,7 @@ exports.GetAllUserInvoices = useAsync(async (req, res) => {
         const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
         const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
 
-        const query = ModelInvoice.find({user: req.params.id}).populate("lead").populate("lpo").populate("user").lean();
+        const query = ModelInvoice.find({ user: req.params.id }).populate("lead").populate("lpo").populate("user").lean();
         if (limit !== null) {
             query.skip(skip).limit(limit);
         }
@@ -760,7 +824,14 @@ exports.GetSingleInvoice = useAsync(async (req, res) => {
 exports.DeleteInvoice = useAsync(async (req, res) => {
     try {
         const { id } = req.params;
-        const deletedInvoice = await ModelInvoice.findByIdAndDelete(id);
+        const deletedInvoice = await ModelInvoice.findByIdAndUpdate(
+            id,
+            {
+                isDeleted: false,
+                updated_at: Date.now()
+            },
+            { new: true }
+        );;
 
         if (!deletedInvoice) {
             return res.status(404).json(utils.JParser('Invoice not found', false, null));
@@ -833,7 +904,7 @@ exports.GetAllUserCustomer = useAsync(async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
         const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
-        
+
         const userObjectId = Types.ObjectId(req.params.id);
         const userLeads = await ModelLead.find({ user: userObjectId }).select('_id');
 
@@ -841,7 +912,7 @@ exports.GetAllUserCustomer = useAsync(async (req, res) => {
 
         if (leadIds.length === 0) {
             const response = utils.JParser('No Customer found for this user', true, {
-                customer: [], 
+                customer: [],
                 pagination: limit !== null ? {
                     currentPage: page,
                     totalPages: 0,
@@ -859,19 +930,19 @@ exports.GetAllUserCustomer = useAsync(async (req, res) => {
         if (limit !== null) {
             query.skip(skip).limit(limit);
         }
-        
+
         const customer = await query.exec();
         console.log('Found customers:', customer.length);
 
-        const response = utils.JParser('Customer fetched successfully', !!customer, { 
+        const response = utils.JParser('Customer fetched successfully', !!customer, {
             customer: customer
         });
 
         if (limit !== null) {
-            const totalCustomers = await ModelCustomer.countDocuments({ 
-                lead: { $in: leadIds } 
+            const totalCustomers = await ModelCustomer.countDocuments({
+                lead: { $in: leadIds }
             });
-            
+
             response.data.pagination = {
                 currentPage: page,
                 totalPages: Math.ceil(totalCustomers / limit),
@@ -919,12 +990,73 @@ exports.UpdateCustomer = useAsync(async (req, res) => {
 
 exports.DeleteCustomer = useAsync(async (req, res) => {
     try {
-        const customer = await ModelCustomer.findByIdAndDelete(req.params.id);
+        const customer = await ModelCustomer.findByIdAndUpdate(
+            req.params.id,
+            {
+                isDeleted: false,
+                updated_at: Date.now()
+            },
+            { new: true }
+        );
         if (!customer) throw new errorHandle('Customer not found', 404);
 
         return res.json(
             utils.JParser('Customer deleted successfully', true, null)
         );
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+////COMMISSION ROUTES
+//////////////////////////////////////////////////////////////////////////////////////
+exports.GetAllUserCommision = useAsync(async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+
+        const query = ModelInvoice.find({ user: req.params.id }).lean();
+        if (limit !== null) {
+            query.skip(skip).limit(limit);
+        }
+        const invoices = await query.exec();
+        const Commission = await ModelCommission.findOne({status:true})
+
+        const invoicesWithCommission = invoices.map((invoice, index) => {
+            const now = new Date();
+            const yearLastTwo = now.getFullYear().toString().slice(-2);
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const indexPadded = (index + 1).toString().padStart(2, '0');
+            const commissionID = `COM${yearLastTwo}${month}-${indexPadded}`;
+
+            const earned = invoice.totalAmount / Commission.price
+
+            return {
+                ...invoice,
+                commissionID,
+                earned: parseFloat(earned.toFixed(2))
+            };
+        });
+
+        const response = utils.JParser('Commision fetched successfully', true, {
+            commission: invoicesWithCommission
+        });
+
+        if (limit !== null) {
+            const totalInvoice = await ModelInvoice.countDocuments({ user: req.params.id });
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalInvoice / limit),
+                totalInvoice,
+                limit
+            };
+        }
+
+        return res.json(response);
+
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }

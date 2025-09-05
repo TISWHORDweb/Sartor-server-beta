@@ -39,10 +39,21 @@ const invoiceSchema = new mongoose.Schema({
         enum: ["Paid", "Processing", "Cancelled", "Overdue", "Pending", "Partially Paid"],
         default: "Processing"
     },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }
 })
 
+// Auto-exclude deleted documents from queries
+invoiceSchema.pre(/^find/, function (next) {
+    if (this.getFilter().includeDeleted !== true) {
+        this.where({ isDeleted: false });
+    }
+    next();
+});
 
 const ModelInvoice = mongoose.model("model-invoice", invoiceSchema)
 

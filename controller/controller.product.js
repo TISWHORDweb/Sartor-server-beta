@@ -10,42 +10,42 @@ const ModelBatch = require("../models/model.batch");
 
 
 exports.CreateProduct = useAsync(async (req, res) => {
-  try {
-    // if (!req.is('multipart/form-data')) {
-    //   throw new errorHandle('Content-Type must be multipart/form-data', 400);
-    // }
+    try {
+        // if (!req.is('multipart/form-data')) {
+        //   throw new errorHandle('Content-Type must be multipart/form-data', 400);
+        // }
 
-    const { 
-      productName, 
-      barcodeNumber, 
-      manufacturer, 
-      description,
-      productImage 
-    } = req.body;
+        const {
+            productName,
+            barcodeNumber,
+            manufacturer,
+            description,
+            productImage
+        } = req.body;
 
-    // if (!productName || typeof productName !== 'string') {
-    //   throw new errorHandle('Product name is required and must be a string', 400);
-    // }
+        // if (!productName || typeof productName !== 'string') {
+        //   throw new errorHandle('Product name is required and must be a string', 400);
+        // }
 
-    // if (barcodeNumber && typeof barcodeNumber !== 'string') {
-    //   throw new errorHandle('Barcode must be a string', 400);
-    // }
+        // if (barcodeNumber && typeof barcodeNumber !== 'string') {
+        //   throw new errorHandle('Barcode must be a string', 400);
+        // }
 
-    const batchId = await genID(2);
+        const batchId = await genID(2);
 
-    const product = await ModelProduct.create({
-      productName,
-      barcodeNumber: barcodeNumber || null,
-      manufacturer: manufacturer || null,
-      description: description || null,
-      productImage: productImage || null,
-      batchId
-    });
+        const product = await ModelProduct.create({
+            productName,
+            barcodeNumber: barcodeNumber || null,
+            manufacturer: manufacturer || null,
+            description: description || null,
+            productImage: productImage || null,
+            batchId
+        });
 
-    return res.json(utils.JParser('Product created successfully', !!product, product));
-  } catch (e) {
-    throw new errorHandle(e.message, e.statusCode || 500);
-  }
+        return res.json(utils.JParser('Product created successfully', !!product, product));
+    } catch (e) {
+        throw new errorHandle(e.message, e.statusCode || 500);
+    }
 });
 
 exports.UpdateProduct = useAsync(async (req, res) => {
@@ -79,7 +79,14 @@ exports.UpdateProduct = useAsync(async (req, res) => {
 exports.DeleteProduct = useAsync(async (req, res) => {
     try {
         const { id } = req.params;
-        const deletedProduct = await ModelProduct.findByIdAndDelete(id);
+        const deletedProduct = await ModelProduct.findByIdAndUpdate(
+            id,
+            {
+                isDeleted: false,
+                updated_at: Date.now()
+            },
+            { new: true }
+        );;
 
         if (!deletedProduct) {
             return res.status(404).json(utils.JParser('Product not found', false, null));
@@ -112,7 +119,7 @@ exports.GetAllProducts = useAsync(async (req, res) => {
 
         // Get supplier IDs from batches
         const supplierIds = [...new Set(batches.map(b => b.supplier).filter(Boolean))];
-        
+
         // Get all suppliers in one query
         const suppliers = await ModelSupplier.find({ _id: { $in: supplierIds } })
             .lean()
@@ -130,13 +137,13 @@ exports.GetAllProducts = useAsync(async (req, res) => {
         const batchesByProduct = batches.reduce((acc, batch) => {
             const productId = batch.product.toString();
             if (!acc[productId]) acc[productId] = [];
-            
+
             // Attach supplier info if exists
             const batchWithSupplier = {
                 ...batch,
                 supplier: batch.supplier ? suppliers[batch.supplier.toString()] : null
             };
-            
+
             acc[productId].push(batchWithSupplier);
             return acc;
         }, {});
@@ -232,10 +239,10 @@ exports.GetSingleProduct = useAsync(async (req, res) => {
     }
 });
 
-exports.GetAllProductBatch= useAsync(async (req, res) => {
+exports.GetAllProductBatch = useAsync(async (req, res) => {
     try {
         const { id } = req.params;
-        const batches = await ModelBatch.find({product: id})
+        const batches = await ModelBatch.find({ product: id })
             .populate('supplier')
             .lean();
 
@@ -308,7 +315,14 @@ exports.UpdateRestock = useAsync(async (req, res) => {
 exports.DeleteRestock = useAsync(async (req, res) => {
     try {
         const { id } = req.params;
-        const deletedRestock = await ModelRestock.findByIdAndDelete(id);
+        const deletedRestock = await ModelRestock.findByIdAndUpdate(
+            id,
+            {
+                isDeleted: false,
+                updated_at: Date.now()
+            },
+            { new: true }
+        );;
 
         if (!deletedRestock) {
             return res.status(404).json(utils.JParser('Restock not found', false, null));
@@ -437,7 +451,14 @@ exports.UpdateSupplier = useAsync(async (req, res) => {
 exports.DeleteSupplier = useAsync(async (req, res) => {
     try {
         const { id } = req.params;
-        const deletedSupplier = await ModelSupplier.findByIdAndDelete(id);
+        const deletedSupplier = await ModelSupplier.findByIdAndUpdate(
+            id,
+            {
+                isDeleted: false,
+                updated_at: Date.now()
+            },
+            { new: true }
+        );;
 
         if (!deletedSupplier) {
             return res.status(404).json(utils.JParser('Supplier not found', false, null));
@@ -568,13 +589,13 @@ exports.CreateBatch = useAsync(async (req, res) => {
         });
 
         const validator = await schema.validateAsync(req.body);
-        
+
         // Process each batch item
         const batchPromises = validator.batch.map(async (batchItem) => {
 
-             const batchNumber = batchItem.batchNumber
+            const batchNumber = batchItem.batchNumber
 
-             if (batchNumber) {
+            if (batchNumber) {
                 const existingBatch = await ModelBatch.findOne({ batchNumber });
                 if (existingBatch) {
                     return res.status(400).json(utils.JParser(`Batch with batchNumber ${batchNumber} already exists`, false, []));
@@ -674,11 +695,137 @@ exports.UpdateBatch = useAsync(async (req, res) => {
 // Delete Batch
 exports.DeleteBatch = useAsync(async (req, res) => {
     try {
-        const batch = await ModelBatch.findByIdAndDelete(req.params.id).lean();
+        const batch = await ModelBatch.findByIdAndUpdate(
+            req.params.id,
+            {
+                isDeleted: false,
+                updated_at: Date.now()
+            },
+            { new: true }
+        );;
 
         if (!batch) throw new errorHandle('Batch not found', 404);
 
         return res.json(utils.JParser('Batch deleted successfully', true, batch));
+    } catch (e) {
+        throw new errorHandle(e.message, 400);
+    }
+});
+
+
+// Calculate average price and suggest selling price
+exports.calculateProductPricing = useAsync(async (req, res) => {
+    try {
+        const { id } = req.params;
+        const productId = id 
+
+        if (!productId) {
+            throw new errorHandle('Product ID is required', 400);
+        }
+
+        // Find the product
+        const product = await ModelProduct.findById(productId);
+        if (!product) {
+            throw new errorHandle('Product not found', 404);
+        }
+
+        // Get all batches for this product with positive quantity
+        const batches = await ModelBatch.find({
+            product: productId
+        }).sort({ createdAt: 1 });
+
+        if (batches.length === 0) {
+            throw new errorHandle('No available batches found for this product', 404);
+        }
+
+        // Calculate weighted average cost price
+        let totalCostValue = 0;
+        let totalQuantity = 0;
+
+        batches.forEach(batch => {
+            const quantity = batch.quantity  === 0 ? 1 : batch.quantity
+            totalCostValue += batch.sellingPrice * quantity;
+            totalQuantity += quantity;
+        });
+
+        const averageCostPrice = totalCostValue / totalQuantity;
+        // Calculate suggested selling price (you can adjust the markup percentage)
+        const markupPercentage = 1.1; // 30% markup
+        const suggestedSellingPrice = averageCostPrice * markupPercentage;
+
+        // Round to 2 decimal places
+        const roundedAverageCost = Math.round(averageCostPrice * 100) / 100;
+        const roundedSuggestedPrice = Math.round(suggestedSellingPrice * 100) / 100;
+
+        // Get current selling price for comparison
+        const currentSellingPrice = product.price || 0;
+
+        return res.json(utils.JParser('Pricing calculation successful', true, {
+            product: {
+                _id: product._id,
+                name: product.productName
+            },
+            batchStatistics: {
+                totalBatches: batches.length,
+                markupPercentage,
+                totalQuantity: totalQuantity,
+                averageCostPrice: roundedAverageCost,
+                currentSellingPrice: currentSellingPrice,
+                suggestedSellingPrice: roundedSuggestedPrice,
+            },
+            batches: batches.map(batch => ({
+                batchNumber: batch.batchNumber,
+                sellingPrice: batch.sellingPrice,
+                quantity: batch.quantity
+            }))
+        }));
+
+    } catch (e) {
+        throw new errorHandle(e.message, 400);
+    }
+});
+
+// Update product selling price
+exports.updateProductPrice = useAsync(async (req, res) => {
+    try {
+        const { price, productId } = req.body;
+
+        if (!productId || !price) {
+            throw new errorHandle('Product ID and selling price are required', 400);
+        }
+
+        if (typeof price !== 'number' || price <= 0) {
+            throw new errorHandle('Selling price must be a positive number', 400);
+        }
+
+        // Find the product
+        const product = await ModelProduct.findById(productId);
+        if (!product) {
+            throw new errorHandle('Product not found', 404);
+        }
+
+        // Store old price for history/audit
+        const oldPrice = product.price;
+
+        // Update the product price
+        const updatedProduct = await ModelProduct.findByIdAndUpdate(
+            productId,
+            {
+                price: price,
+                lastPriceUpdate: Date.now(),
+                oldPrice: oldPrice
+            },
+            { new: true }
+        );
+
+        return res.json(utils.JParser('Product price updated successfully', true, {
+            product: {
+                _id: updatedProduct._id,
+                name: updatedProduct.productName,
+                price: updatedProduct.price
+            }
+        }));
+
     } catch (e) {
         throw new errorHandle(e.message, 400);
     }

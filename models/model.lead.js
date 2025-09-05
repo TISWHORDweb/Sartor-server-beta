@@ -49,10 +49,21 @@ const leadSchema = new mongoose.Schema({
         type: String,
         enum: ["Contacted", "Order Fulfilled", "Closed Lost", "Follow Up", "Qualified", "Interested", "Hold", "In-Negotiations", "LPO Generated", "Closed Won", "Payment Confirmed"],
     },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }
 })
 
+// Auto-exclude deleted documents from queries
+leadSchema.pre(/^find/, function (next) {
+    if (this.getFilter().includeDeleted !== true) {
+        this.where({ isDeleted: false });
+    }
+    next();
+});
 
 const ModelLead = mongoose.model("model-lead", leadSchema)
 

@@ -7,12 +7,12 @@ const express = require('express');
 const router = express.Router();
 const CoreError = require('../core/core.error');
 const { getTasks, singleTask, taskComment, singleTaskComment, taskComments, changeTaskStatus, tasksByStatus } = require('../controller/controller.task');
-const { getUser, deleteUser, singleUser, editUser, allUser, createUser, GetDashboardSummary, GetUsersByRole, CreateContact, GetAllContacts, GetContact, UpdateContact, DeleteContact } = require('../controller/controller.user');
+const { getUser, deleteUser, singleUser, editUser, allUser, createUser, GetDashboardSummary, GetUsersByRole, CreateContact, GetAllContacts, GetContact, UpdateContact, DeleteContact, UpdateCommission, GetCommision } = require('../controller/controller.user');
 // const { product, singleProduct, allProduct, deleteProduct, editProduct, getAdminProduct, productCategory, singleProductCategory, editProductCategory, allProductCategory, deleteProductCategory, getProductsByCategory } = require('../controller/controller.product');
 const { deleteTasks, CreateTask, editTask } = require('../controller/controller.task');
 const { useAsync } = require('../core');
-const { CreateLead, UpdateLead, DeleteLead, GetAllLeads, GetSingleLead, CreateLpo, UpdateLpo, DeleteLpo, GetAllLpos, GetSingleLpo, GetAllInvoices, GetSingleInvoice, DeleteInvoice, changeInvoiceStatus, updateLeadStatus, GetAllCustomer, UpdateCustomer, DeleteCustomer, GetCustomer, updateLPOStatus, GetAllUserLeads, GetAllUserLpos, GetAllUserCustomer, GetAllUserInvoices } = require('../controller/controller.customer');
-const { CreateSupplier, UpdateSupplier, DeleteSupplier, GetAllSuppliers, GetSingleSupplier, CreateProduct, UpdateProduct, DeleteProduct, GetAllProducts, GetSingleProduct, CreateRestock, UpdateRestock, DeleteRestock, GetAllRestocks, GetSingleRestock, CreateBatch, GetAllBatches, GetSingleBatch, UpdateBatch, DeleteBatch, GetAllProductBatch } = require('../controller/controller.product');
+const { CreateLead, UpdateLead, DeleteLead, GetAllLeads, GetSingleLead, CreateLpo, UpdateLpo, DeleteLpo, GetAllLpos, GetSingleLpo, GetAllInvoices, GetSingleInvoice, DeleteInvoice, changeInvoiceStatus, updateLeadStatus, GetAllCustomer, UpdateCustomer, DeleteCustomer, GetCustomer, updateLPOStatus, GetAllUserLeads, GetAllUserLpos, GetAllUserCustomer, GetAllUserInvoices, GetAllUserCommision } = require('../controller/controller.customer');
+const { CreateSupplier, UpdateSupplier, DeleteSupplier, GetAllSuppliers, GetSingleSupplier, CreateProduct, UpdateProduct, DeleteProduct, GetAllProducts, GetSingleProduct, CreateRestock, UpdateRestock, DeleteRestock, GetAllRestocks, GetSingleRestock, CreateBatch, GetAllBatches, GetSingleBatch, UpdateBatch, DeleteBatch, GetAllProductBatch, calculateProductPricing, updateProductPrice } = require('../controller/controller.product');
 const { uploadLabel, labelTrainWebhook, CreateLabel, GetAllLabels, GetLabel, UpdateLabel, DeleteLabel, verifyLabel } = require('../controller/controller.label');
 const { upload } = require('../core/core.utils');
 const { universalSearch } = require('../controller/controller.search');
@@ -78,6 +78,8 @@ router.delete('/product/delete/:id', useAsync(authMiddleware), useAsync(roleMidd
 router.get('/products', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllProducts );
 router.get('/product/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleProduct );
 router.get('/product/batches/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllProductBatch );
+router.get('/product/price/suggestion/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), calculateProductPricing );
+router.put('/product/price', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), updateProductPrice );
 
 //RESTOCK
 router.post('/restock', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateRestock );
@@ -126,6 +128,11 @@ router.put('/contact/edit/:id', useAsync(authMiddleware), useAsync(roleMiddlewar
 router.delete('/contact/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteContact );
 router.get('/contacts', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllContacts );
 router.get('/contact/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetContact );
+
+//COMMISSION
+router.put('/commission/update', UpdateCommission );
+router.get('/commission', GetCommision );
+router.get('/commissions/:id', GetAllUserCommision );
 
 /**
  * Export lastly

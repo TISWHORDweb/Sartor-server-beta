@@ -15,10 +15,22 @@ const lpoSchema = new mongoose.Schema({
         type: Number,
         default: 1
     },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }
 })
 
+
+// Auto-exclude deleted documents from queries
+lpoSchema.pre(/^find/, function (next) {
+    if (this.getFilter().includeDeleted !== true) {
+        this.where({ isDeleted: false });
+    }
+    next();
+});
 
 const ModelLpoProduct = mongoose.model("model-lpo-product", lpoSchema)
 

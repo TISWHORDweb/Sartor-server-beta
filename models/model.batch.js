@@ -20,7 +20,6 @@ const batchSchema = new mongoose.Schema({
     quantity: {
         type: Number,
         required: true,
-        min: 1
     },
     expiryDate: {
         type: Number
@@ -49,9 +48,20 @@ const batchSchema = new mongoose.Schema({
         enum: ['active', 'expired', 'sold-out', 'recalled'],
         default: 'active'
     },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }
 })
+
+batchSchema.pre(/^find/, function (next) {
+    if (this.getFilter().includeDeleted !== true) {
+        this.where({ isDeleted: false });
+    }
+    next();
+});
 
 const ModelBatch = mongoose.model("model-batch", batchSchema)
 

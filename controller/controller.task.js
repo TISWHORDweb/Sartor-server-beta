@@ -174,7 +174,14 @@ exports.deleteTasks = useAsync(async (req, res) => {
         const taskID = req.body.id
         if (!taskID) return res.status(402).json(utils.JParser('provide the tasks id', false, []));
 
-        const tasks = await ModelTask.deleteOne({ _id: taskID })
+        const tasks = await ModelTask.findByIdAndUpdate(
+            taskID,
+            {
+                isDeleted: false,
+                updated_at: Date.now()
+            },
+            { new: true }
+        );
         return res.json(utils.JParser('Tasks deleted successfully', !!tasks, []));
 
     } catch (e) {

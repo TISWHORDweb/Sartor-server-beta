@@ -15,6 +15,7 @@ const ModelLead = require("../models/model.lead");
 const ModelTask = require("../models/model.task");
 const EmailService = require("../services");
 const ModelContact = require("../models/model.contact");
+const ModelCommission = require("../models/moddel.commision");
 
 
 exports.editUser = useAsync(async (req, res) => {
@@ -140,7 +141,14 @@ exports.deleteUser = useAsync(async (req, res) => {
         const userId = req.body.id
         if (!userId) return res.status(402).json(utils.JParser('provide the user id', false, []));
 
-        const user = await ModelUser.deleteOne({ _id: userId })
+        const user = await ModelUser.findByIdAndUpdate(
+            userId,
+            {
+                isDeleted: false,
+                updated_at: Date.now()
+            },
+            { new: true }
+        );
         return res.json(utils.JParser('User deleted successfully', !!user, []));
 
     } catch (e) {
@@ -457,9 +465,39 @@ exports.UpdateContact = useAsync(async (req, res) => {
 // DELETE Contact
 exports.DeleteContact = useAsync(async (req, res) => {
     try {
-        const deleted = await ModelContact.findByIdAndDelete(req.params.id);
+        const deleted = await ModelContact.findByIdAndUpdate(
+            req.params.id,
+            {
+                isDeleted: false,
+                updated_at: Date.now()
+            },
+            { new: true }
+        );
         if (!deleted) throw new errorHandle("Contact not found", 404);
         return res.json(utils.JParser('Contact deleted successfully', true));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+//COMMISSION
+////////////////////////////////////////////////////////////////////////////////////////////////
+exports.UpdateCommission = useAsync(async (req, res) => {
+    try {
+        const updated = await ModelCommission.updateOne({status:true}, {price: Number(req.body.price)}, { new: true });
+        if (!updated) throw new errorHandle("Commission not found", 404);
+        return res.json(utils.JParser('Commission updated successfully', true, []));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+exports.GetCommision = useAsync(async (req, res) => {
+    try {
+        const Commission = await ModelCommission.findOne({status:true}).lean();
+        if (!Commission) throw new errorHandle("Commission not found", 404);
+        return res.json(utils.JParser('Commission fetched successfully', true, { data: Commission }));
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }

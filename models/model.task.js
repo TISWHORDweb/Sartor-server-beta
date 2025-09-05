@@ -17,6 +17,10 @@ const taskSchema = new mongoose.Schema({
         ref: 'model-user',
         required: true
     },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
     dueDate: { type: String },
     taskFor: { type: Number, default: 0 }, // single employee = 1 | all employee =  2
     quantity: { type: Number, default: 0 },
@@ -25,6 +29,12 @@ const taskSchema = new mongoose.Schema({
     updated_at: { type: Number, default: () => Date.now() }
 })
 
+taskSchema.pre(/^find/, function (next) {
+    if (this.getFilter().includeDeleted !== true) {
+        this.where({ isDeleted: false });
+    }
+    next();
+});
 
 const ModelTask = mongoose.model("model-task", taskSchema)
 

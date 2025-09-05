@@ -28,9 +28,22 @@ const supplierSchema = new mongoose.Schema({
     branch: {
         type: String,
     },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }
 })
+
+
+// Auto-exclude deleted documents from queries
+supplierSchema.pre(/^find/, function (next) {
+    if (this.getFilter().includeDeleted !== true) {
+        this.where({ isDeleted: false });
+    }
+    next();
+});
 
 
 const ModelSupplier = mongoose.model("model-supplier", supplierSchema)

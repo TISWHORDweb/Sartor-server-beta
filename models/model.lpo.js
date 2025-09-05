@@ -19,10 +19,22 @@ const lpoSchema = new mongoose.Schema({
     lpoId: {
         type: String,
     },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }
 })
 
+
+// Auto-exclude deleted documents from queries
+lpoSchema.pre(/^find/, function (next) {
+    if (this.getFilter().includeDeleted !== true) {
+        this.where({ isDeleted: false });
+    }
+    next();
+});
 
 const ModelLpo = mongoose.model("model-lpo", lpoSchema)
 

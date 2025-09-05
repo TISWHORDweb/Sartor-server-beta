@@ -100,7 +100,14 @@ exports.UpdateLabel = useAsync(async (req, res) => {
 
 exports.DeleteLabel = useAsync(async (req, res) => {
     try {
-        const label = await ModelLabel.findByIdAndDelete(req.params.id);
+        const label = await ModelLabel.findByIdAndUpdate(
+            req.params.id,
+            {
+                isDeleted: false,
+                updated_at: Date.now()
+            },
+            { new: true }
+        );
         if (!label) throw new errorHandle('Label not found', 404);
 
         return res.json(

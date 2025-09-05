@@ -120,12 +120,22 @@ const userSchema = new mongoose.Schema({
         enum: ["admin", "user"],
         default: "user"
     },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
     type: { type: Number, default: 0 },
     adminID: { type: String },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }
 })
 
+userSchema.pre(/^find/, function (next) {
+    if (this.getFilter().includeDeleted !== true) {
+        this.where({ isDeleted: false });
+    }
+    next();
+});
 
 const ModelUser = mongoose.model("model-user", userSchema)
 
