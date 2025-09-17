@@ -187,14 +187,14 @@ exports.universalSearch = useAsync(async (req, res) => {
         const { collection, searchvalue } = req.body;
         
         if (!collection || !searchvalue) {
-            return res.json(utils.JParser('Collection and search value are required', false, null));
+            return res.status(400).json(utils.JParser('Collection and search value are required', false, null));
         }
 
         const collectionKey = collection.toLowerCase();
         const config = MODEL_CONFIG[collectionKey];
         
         if (!config) {
-            return res.json(utils.JParser('Invalid collection name', false, null));
+            return res.status(400).json(utils.JParser('Invalid collection name', false, null));
         }
 
         // Build search query for main model

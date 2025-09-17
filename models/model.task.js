@@ -21,6 +21,11 @@ const taskSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    admin: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-admin',
+        required: true
+    },
     dueDate: { type: String },
     taskFor: { type: Number, default: 0 }, // single employee = 1 | all employee =  2
     quantity: { type: Number, default: 0 },

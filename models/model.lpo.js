@@ -23,6 +23,15 @@ const lpoSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-user',
+    },
+    admin: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-admin',
+        required: true
+    },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }
 })

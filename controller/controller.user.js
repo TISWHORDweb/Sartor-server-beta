@@ -64,12 +64,33 @@ exports.singleUser = useAsync(async (req, res) => {
 
 exports.allUser = useAsync(async (req, res) => {
     try {
+        const accountID = req.userId;
+        const accountType = req.userType;
         const page = parseInt(req.query.page) || 1;
         const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
         const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
 
-        const query = ModelUser.find({ userRole: { $ne: 'admin' } })
-            .select('-password') // Exclude password field
+        let filter = {};
+        if (accountType === "user") {
+            filter = { admin: null };
+        } else if (accountType === "admin") {
+            filter = { admin: accountID };
+        }
+
+        // 🔍 Add search functionality
+        if (req.query.search) {
+            const searchRegex = new RegExp(req.query.search, "i");
+            filter.$or = [
+                { fullName: searchRegex },
+                { email: searchRegex },
+                { phone: searchRegex },
+                { address: searchRegex },
+                { role: searchRegex }
+            ];
+        }
+
+        const query = ModelUser.find(filter)
+            .select('-password') // Exclude password
             .lean();
 
         if (limit !== null) query.skip(skip).limit(limit);
@@ -78,7 +99,12 @@ exports.allUser = useAsync(async (req, res) => {
         const response = utils.JParser('Users fetched successfully', !!users, { data: users });
 
         if (limit !== null) {
-            const totalUsers = await ModelUser.countDocuments({ userRole: { $ne: 'admin' } });
+            // Ensure count respects search + filter
+            const totalUsers = await ModelUser.countDocuments({
+                ...filter,
+                userRole: { $ne: 'admin' }
+            });
+
             response.data.pagination = {
                 currentPage: page,
                 totalPages: Math.ceil(totalUsers / limit),
@@ -93,9 +119,13 @@ exports.allUser = useAsync(async (req, res) => {
     }
 });
 
+
 // Get users by specific role (sales rep, manager, etc.)
 exports.GetUsersByRole = useAsync(async (req, res) => {
     try {
+
+        const accountID = req.userId
+        const accountType = req.userType
         const role = req.params.id;
         const validRoles = ["Manager", "Admin", "Sales Rep", "Inventory Manager", "Merchandiser"];
 
@@ -103,11 +133,16 @@ exports.GetUsersByRole = useAsync(async (req, res) => {
             return res.status(400).json(utils.JParser('Invalid user role specified', false, []));
         }
 
+        let filter = {};
+        if (accountType === "admin") {
+            filter = { admin: accountID, role };
+        }
+
         const page = parseInt(req.query.page) || 1;
         const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
         const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
 
-        const query = ModelUser.find({ role })
+        const query = ModelUser.find(filter)
             .select('-password') // Exclude password field
             .lean();
 
@@ -162,7 +197,7 @@ exports.createUser = useAsync(async (req, res) => {
 
     try {
 
-        req.body.adminID = req.userId
+        req.body.admin = req.userId
 
         if (!req.body.email, !req.body.role, !req.body.phone) return res.json(utils.JParser('please check the fields', false, []));
         const userId = await genID(1);
@@ -190,10 +225,11 @@ exports.createUser = useAsync(async (req, res) => {
                     const emailData = {
                         email: data.email,
                         name: data.fullName,
+                        role: data.role,
                         password: generateNewPassword
                     }
 
-                    // EmailService.sendNewEmployeeCredentials(emailData)
+                    EmailService.sendNewEmployeeCredentials(emailData)
 
                     return res.json(utils.JParser('Congratulation Account created successfully', !!data, data));
 
@@ -207,67 +243,87 @@ exports.createUser = useAsync(async (req, res) => {
     }
 })
 
+
 exports.GetDashboardSummary = useAsync(async (req, res) => {
     try {
-        const totalCustomers = await ModelCustomer.countDocuments();
-        const totalLpos = await ModelLpo.countDocuments();
+        const accountType = req.userType;
+        const accountID = req.userId;
 
-        const allLpos = await ModelLpo.find().lean();
+        if (!accountType) {
+            throw new errorHandle("User not found", 400)
+        }
+
+        // 🔹 Build filter dynamically
+        const filter = accountType === "user"
+            ? { user: accountID }
+            : accountType === "admin" ? { admin: accountID } : {};
+
+        // 🔹 Customers
+        const totalCustomers = await ModelCustomer.countDocuments(filter);
+
+        // 🔹 LPOs
+        const totalLpos = await ModelLpo.countDocuments(filter);
+        const allLpos = await ModelLpo.find(filter).lean();
         const lpoIds = allLpos.map(lpo => lpo._id);
-        const products = await ModelLpoProduct.find({ lpo: { $in: lpoIds } }).populate('product');
+
+        // 🔹 Products by LPO
+        const products = await ModelLpoProduct.find({ lpo: { $in: lpoIds } })
+            .populate("product");
 
         const productsByLpoId = products.reduce((acc, product) => {
             if (!product.lpo) return acc;
             if (!acc[product.lpo]) acc[product.lpo] = [];
 
             const quantity = parseFloat(product.quantity) || 0;
-            const unitPrice = (product.product && !isNaN(parseFloat(product.product.unitPrice)))
-                ? parseFloat(product.product.unitPrice)
-                : 0;
-
+            const unitPrice = product.product?.price ? parseFloat(product.product.price) : 0;
             const productAmount = unitPrice * quantity;
 
             acc[product.lpo].push({
                 ...product.toObject(),
                 amount: productAmount,
-                quantity: quantity
+                quantity
             });
 
             return acc;
         }, {});
 
+        // 🔹 Total Sales
         const totalSales = allLpos.reduce((sum, lpo) => {
             const lpoProducts = productsByLpoId[lpo._id] || [];
-            const lpoAmount = lpoProducts.reduce((lpoSum, product) => {
-                return lpoSum + (product.amount || 0);
-            }, 0);
+            const lpoAmount = lpoProducts.reduce((lpoSum, product) => lpoSum + (product.amount || 0), 0);
             return sum + lpoAmount;
         }, 0);
 
-        const totalProducts = await ModelProduct.countDocuments();
+        // 🔹 Total Products
+        const totalProducts =
+            accountType === "admin"
+                ? await ModelProduct.countDocuments(filter)
+                : products.length;
 
+        // 🔹 Customer Chart
         const currentYear = new Date().getFullYear();
         const monthlyCustomerCounts = Array(12).fill(0);
-        const customers = await ModelCustomer.find().populate('lead');
 
+        const customers = await ModelCustomer.find(filter).populate("lead");
         customers.forEach(customer => {
             if (customer.creationDateTime) {
                 const date = new Date(customer.creationDateTime);
                 if (date.getFullYear() === currentYear) {
-                    const month = date.getMonth();
-                    monthlyCustomerCounts[month]++;
+                    monthlyCustomerCounts[date.getMonth()]++;
                 }
             }
         });
 
+        // 🔹 Top Regions
         const topRegions = await ModelLead.aggregate([
-            { $match: { lga: { $exists: true, $ne: null } } },
+            { $match: { ...filter, lga: { $exists: true, $ne: null } } },
             { $group: { _id: "$lga", count: { $sum: 1 } } },
             { $sort: { count: -1 } },
             { $limit: 5 },
             { $project: { lga: "$_id", count: 1, _id: 0 } }
         ]);
 
+        // 🔹 Monthly Revenue
         const monthlyRevenue = Array(12).fill(0);
         allLpos.forEach(lpo => {
             if (lpo.creationDateTime) {
@@ -275,53 +331,46 @@ exports.GetDashboardSummary = useAsync(async (req, res) => {
                 if (date.getFullYear() === currentYear) {
                     const month = date.getMonth();
                     const lpoProducts = productsByLpoId[lpo._id] || [];
-                    const lpoAmount = lpoProducts.reduce((sum, product) => sum + (product.amount || 0), 0);
+                    const lpoAmount = lpoProducts.reduce(
+                        (sum, product) => sum + (product.amount || 0),
+                        0
+                    );
                     monthlyRevenue[month] += lpoAmount;
                 }
             }
         });
 
+        // 🔹 Top Products (direct from product, no batch)
         const topProducts = await ModelLpoProduct.aggregate([
+            { $match: { lpo: { $in: lpoIds } } },
             {
                 $lookup: {
-                    from: "modelbatches",
-                    localField: "batch",
-                    foreignField: "_id",
-                    as: "batchDetails"
-                }
-            },
-            { $unwind: "$batchDetails" },
-
-            {
-                $lookup: {
-                    from: "modelproducts",
-                    localField: "batchDetails.product",
+                    from: "model-products", // ✅ correct
+                    localField: "product",
                     foreignField: "_id",
                     as: "productDetails"
                 }
             },
             { $unwind: "$productDetails" },
-
             {
                 $group: {
                     _id: "$productDetails._id",
                     productName: { $first: "$productDetails.productName" },
+                    unitPrice: { $first: "$productDetails.price" },
                     totalOrders: { $sum: 1 },
                     totalQuantity: { $sum: "$quantity" },
-                    totalRevenue: {
-                        $sum: {
-                            $multiply: ["$quantity", "$batchDetails.sellingPrice"]
-                        }
-                    }
+                    totalRevenue: { $sum: { $multiply: ["$quantity", "$productDetails.price"] } }
                 }
             },
             { $sort: { totalRevenue: -1 } },
             { $limit: 5 }
         ]);
 
+        // 🔹 Top Sales Reps
         const topSalesReps = await ModelTask.aggregate([
             {
                 $match: {
+                    ...filter,
                     status: "Completed",
                     user: { $exists: true, $ne: null }
                 }
@@ -336,7 +385,7 @@ exports.GetDashboardSummary = useAsync(async (req, res) => {
             { $limit: 5 },
             {
                 $lookup: {
-                    from: "model-users",
+                    from: "model-users", // ✅ correct
                     localField: "_id",
                     foreignField: "_id",
                     as: "userDetails"
@@ -354,45 +403,42 @@ exports.GetDashboardSummary = useAsync(async (req, res) => {
             }
         ]);
 
-        const response = utils.JParser('Dashboard summary fetched successfully', true, {
-            // Card data
-            cards: {
-                totalCustomers,
-                totalLpos,
-                totalSales: parseFloat(totalSales.toFixed(2)),
-                totalProducts
-            },
-            // Customer chart
-            customerChart: {
-                monthlyCounts: monthlyCustomerCounts
-            },
-            // Top regions
-            topRegions: topRegions,
-            // Revenue chart
-            revenueChart: {
-                monthlyRevenue: monthlyRevenue.map(amount => parseFloat(amount.toFixed(2)))
-            },
-            // Top products
-            topProducts: topProducts.map(product => ({
-                productName: product.productName,
-                unitPrice: product.unitPrice,
-                orders: product.totalOrders,
-                totalPaid: product.totalPaid
-            })),
-            // Top sales reps
-            topSalesReps: topSalesReps.map(rep => ({
-                name: rep.fullName,
-                completedTasks: rep.completedTasks,
-                image: rep.image
-            }))
-        });
-
-        return res.json(response);
-
+        // 🔹 Response
+        return res.json(
+            utils.JParser("Dashboard summary fetched successfully", true, {
+                cards: {
+                    totalCustomers,
+                    totalLpos,
+                    totalSales: parseFloat(totalSales.toFixed(2)),
+                    totalProducts
+                },
+                customerChart: { monthlyCounts: monthlyCustomerCounts },
+                topRegions,
+                revenueChart: {
+                    monthlyRevenue: monthlyRevenue.map(amount =>
+                        parseFloat(amount.toFixed(2))
+                    )
+                },
+                topProducts: topProducts.map(product => ({
+                    productName: product.productName,
+                    unitPrice: product.unitPrice,
+                    orders: product.totalOrders,
+                    totalQuantity: product.totalQuantity,
+                    totalRevenue: parseFloat(product.totalRevenue.toFixed(2))
+                })),
+                topSalesReps: topSalesReps.map(rep => ({
+                    name: rep.fullName,
+                    completedTasks: rep.completedTasks,
+                    image: rep.image
+                }))
+            })
+        );
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }
 });
+
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -404,7 +450,7 @@ exports.CreateContact = useAsync(async (req, res) => {
         // Send email (already have email function)
         // await sendEmail(contact.businessEmail, "Thanks for contacting us", "We have received your message and will get back to you soon.");
 
-        return res.json(utils.JParser('Contact created successfully', true,  contact ));
+        return res.json(utils.JParser('Contact created successfully', true, contact));
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }
@@ -417,7 +463,24 @@ exports.GetAllContacts = useAsync(async (req, res) => {
         const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
         const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
 
-        const query = ModelContact.find().lean();
+        let filter = {};
+
+        // 🔍 Add search support
+        if (req.query.search) {
+            const searchRegex = new RegExp(req.query.search, "i");
+            filter.$or = [
+                { firstName: searchRegex },
+                { lastName: searchRegex },
+                { businessEmail: searchRegex },
+                { phoneNumber: searchRegex },
+                { jobTitle: searchRegex },
+                { companyName: searchRegex },
+                { companySize: searchRegex },
+                { country: searchRegex }
+            ];
+        }
+
+        const query = ModelContact.find(filter).lean();
 
         if (limit !== null) query.skip(skip).limit(limit);
         const contacts = await query.exec();
@@ -425,7 +488,7 @@ exports.GetAllContacts = useAsync(async (req, res) => {
         const response = utils.JParser('Contacts fetched successfully', !!contacts, { data: contacts });
 
         if (limit !== null) {
-            const totalContacts = await ModelContact.countDocuments();
+            const totalContacts = await ModelContact.countDocuments(filter);
             response.data.pagination = {
                 currentPage: page,
                 totalPages: Math.ceil(totalContacts / limit),
@@ -439,6 +502,7 @@ exports.GetAllContacts = useAsync(async (req, res) => {
         throw new errorHandle(e.message, 500);
     }
 });
+
 
 // GET Single Contact
 exports.GetContact = useAsync(async (req, res) => {
@@ -485,7 +549,7 @@ exports.DeleteContact = useAsync(async (req, res) => {
 ////////////////////////////////////////////////////////////////////////////////////////////////
 exports.UpdateCommission = useAsync(async (req, res) => {
     try {
-        const updated = await ModelCommission.updateOne({status:true}, {price: Number(req.body.price)}, { new: true });
+        const updated = await ModelCommission.updateOne({ status: true }, { price: Number(req.body.price) }, { new: true });
         if (!updated) throw new errorHandle("Commission not found", 404);
         return res.json(utils.JParser('Commission updated successfully', true, []));
     } catch (e) {
@@ -495,7 +559,7 @@ exports.UpdateCommission = useAsync(async (req, res) => {
 
 exports.GetCommision = useAsync(async (req, res) => {
     try {
-        const Commission = await ModelCommission.findOne({status:true}).lean();
+        const Commission = await ModelCommission.findOne({ status: true }).lean();
         if (!Commission) throw new errorHandle("Commission not found", 404);
         return res.json(utils.JParser('Commission fetched successfully', true, { data: Commission }));
     } catch (e) {

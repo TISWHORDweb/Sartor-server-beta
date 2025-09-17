@@ -5,6 +5,7 @@ const cors = require('cors')
 const path = require('path');
 const bodyParser = require('body-parser')
 const Auth = require('./routes/route.auth')
+let errorHandler = require('./middleware/middleware.error');
 const Universal = require('./routes/route.universal')
 
 const mongoose = require('mongoose');
@@ -60,6 +61,8 @@ app.use(function (err, req, res) {
     res.status(err.status || 500);
     res.render('error');
 });
+
+app.use(errorHandler);
 
 // 68485355d0fe1e751b0bd383
 mongoose.set("strictQuery", true);

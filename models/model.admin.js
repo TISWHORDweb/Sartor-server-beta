@@ -1,22 +1,7 @@
 const mongoose = require('mongoose')
 
-const supplierSchema = new mongoose.Schema({
-    name: {
-        type: String,
-    },
-    product: {
-        type: String,
-    },
-    contactName: {
-        type: String,
-    },
-    contactRole: {
-        type: String,
-    },
-    contactNumber: {
-        type: String,
-    },
-    phone: {
+const adminSchema = new mongoose.Schema({
+    fullName: {
         type: String,
     },
     address: {
@@ -25,32 +10,48 @@ const supplierSchema = new mongoose.Schema({
     email: {
         type: String,
     },
-    branch: {
+    phone: {
         type: String,
+    },
+    image: {
+        type: String,
+    },
+    password: {
+        type: String,
+    },
+    token: {
+        type: String,
+    },
+    lastLogin: {
+        type: String,
+    },
+    online: {
+        type: String,
+    },
+    userId: {
+        type: String,
+    },
+    userRole: {
+        type: String,
+        default: "admin"
     },
     isDeleted: {
         type: Boolean,
         default: false
     },
-    admin: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'model-admin',
-        required: true
-    },
+    type: { type: Number, default: 0 },
+    adminID: { type: String },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }
 })
 
-
-// Auto-exclude deleted documents from queries
-supplierSchema.pre(/^find/, function (next) {
+adminSchema.pre(/^find/, function (next) {
     if (this.getFilter().includeDeleted !== true) {
         this.where({ isDeleted: false });
     }
     next();
 });
 
+const ModelAdmin = mongoose.model("model-admin", adminSchema)
 
-const ModelSupplier = mongoose.model("model-supplier", supplierSchema)
-
-module.exports = ModelSupplier
+module.exports = ModelAdmin

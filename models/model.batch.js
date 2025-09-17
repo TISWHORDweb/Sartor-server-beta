@@ -52,6 +52,11 @@ const batchSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    admin: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-admin',
+        require: true
+    },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }
 })

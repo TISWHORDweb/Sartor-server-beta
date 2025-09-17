@@ -5,6 +5,7 @@ const Joi = require("joi");
 const ModelTask = require("../models/model.task");
 const ModelTaskComment = require("../models/model.taskComment");
 const ModelInvoice = require("../models/model.invoice");
+const ModelUser = require("../models/model.user");
 
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -15,7 +16,8 @@ exports.CreateTask = useAsync(async (req, res) => {
 
     try {
 
-        const userId = req.userId
+        const accountType = req.userType
+        const accountID = req.userId
 
         //create data if all data available
         const schema = Joi.object({
@@ -30,6 +32,16 @@ exports.CreateTask = useAsync(async (req, res) => {
 
         //validate data
         const validator = await schema.validateAsync(req.body);
+
+        if (accountType === "user") {
+            const user = await ModelUser.findOne({ _id: accountID })
+            if (!user) {
+                return res.status(400).json(utils.JParser('Invalid user, Try again later', false, []))
+            }
+            validator.admin = user.admin
+        } else {
+            validator.admin = accountID
+        }
 
         const tasks = await ModelTask.create(validator)
         return res.json(utils.JParser('Tasks created successfully', !!tasks, tasks));
@@ -80,34 +92,60 @@ exports.changeTaskStatus = useAsync(async (req, res) => {
 
 exports.getTasks = useAsync(async (req, res) => {
     try {
-        const userId = req.userId;
-        const user = req.user;
+        const accountID = req.userId;
+        const accountType = req.userType;
 
-        // Pagination parameters
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        const skip = (page - 1) * limit;
+        const limit = req.query.limit === "all" ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === "all" ? 0 : (page - 1) * limit;
 
-        // Base query conditions
-        const queryConditions = user.userRole === "admin" ? {} : { user: userId };
+        let filter = {};
+        if (accountType === "user") {
+            filter = { user: accountID };
+        } else if (accountType === "admin") {
+            filter = { admin: accountID };
+        }
 
-        // Get paginated tasks
-        const tasks = await ModelTask.find(queryConditions)
-            .populate({
-                path: 'user',
-                select: '-password'
-            })
-            .sort({ createdAt: -1 }) // Sort by newest first
-            .skip(skip)
-            .limit(limit)
+        // 🔍 Add search (DB-level)
+        if (req.query.search) {
+            const searchRegex = new RegExp(req.query.search, "i");
+            filter.$or = [
+                { title: searchRegex },
+                { description: searchRegex },
+                { status: searchRegex },
+            ];
+        }
+
+        let query = ModelTask.find(filter)
+            .populate("user", "_id fullName")
+            .populate("admin", "_id fullName")
+            .sort({ createdAt: -1 })
             .lean();
 
-        // Get total count for pagination info
-        const totalTasks = await ModelTask.countDocuments(queryConditions);
-        const totalPages = Math.ceil(totalTasks / limit);
+        if (limit !== null) {
+            query = query.skip(skip).limit(limit);
+        }
 
-        // Calculate status counts (from all tasks, not just paginated ones)
-        const allTasks = await ModelTask.find(queryConditions).lean();
+        let tasks = await query.exec();
+
+        // ✅ In-memory filter for populated fields (user/admin names)
+        if (req.query.search) {
+            const searchRegex = new RegExp(req.query.search, "i");
+            tasks = tasks.filter(
+                (t) =>
+                    searchRegex.test(t.title || "") ||
+                    searchRegex.test(t.description || "") ||
+                    searchRegex.test(t.status || "") ||
+                    (t.user && searchRegex.test(t.user.fullName || "")) ||
+                    (t.admin && searchRegex.test(t.admin.fullName || ""))
+            );
+        }
+
+        // 🔢 Analytics
+        const totalTasks = await ModelTask.countDocuments(filter);
+        const totalPages = limit !== null ? Math.ceil(totalTasks / limit) : 1;
+
+        const allTasks = await ModelTask.find(filter).lean();
         const statusCounts = {
             "Pending": 0,
             "Due": 0,
@@ -126,28 +164,28 @@ exports.getTasks = useAsync(async (req, res) => {
             }
         });
 
-        // Prepare response with both paginated tasks and analytics
-        const response = {
-            tasks: tasks,
+        const response = utils.JParser("Tasks fetched successfully", true, {
+            tasks,
             analytics: {
-                statusCounts: statusCounts,
-                totalTasks: totalTasks
+                statusCounts,
+                totalTasks
             },
             pagination: {
                 currentPage: page,
-                totalPages: totalPages,
-                totalTasks: totalTasks,
+                totalPages,
+                totalTasks,
                 tasksPerPage: limit,
-                hasNextPage: page < totalPages,
+                hasNextPage: limit !== null ? page < totalPages : false,
                 hasPreviousPage: page > 1
             }
-        };
+        });
 
-        return res.json(utils.JParser('Tasks fetched successfully', true, response));
+        return res.json(response);
     } catch (e) {
         throw new errorHandle(e.message, 400);
     }
 });
+
 
 exports.singleTask = useAsync(async (req, res) => {
 
@@ -194,56 +232,60 @@ exports.deleteTasks = useAsync(async (req, res) => {
 exports.tasksByStatus = useAsync(async (req, res) => {
     try {
         const { status } = req.params;
-        const user = req.userId
-        const role = req.user.userRole
+        const accountID = req.userId;
+        const accountType = req.userType;
 
-        const option = { status, user }
-        const option2 = { status }
-
-
-        const page = parseInt(req.query.page) || 1; // Default to page 1 if not specified
-        const limit = 10; // Fixed limit of 10 items per page
+        const page = parseInt(req.query.page) || 1;
+        const limit = 10;
         const skip = (page - 1) * limit;
 
-        // Validate status
         const validStatuses = [
             "Pending", "Due", "Assigned", "Unconfirmed",
             "Completed", "Received", "Overdue", "To-Do", "Confirmed"
         ];
 
         if (!validStatuses.includes(status)) {
-            return res.status(400).json(utils.JParser('Invalid status provided', false, null));
+            return res.status(400).json(utils.JParser("Invalid status provided", false, null));
         }
 
-        // Get paginated tasks by status, newest first
-        const tasks = await ModelTask.find(role === "admin" ? option2 : option)
-            .sort({ createdAt: -1 }) // Sort by newest first
+        // Build filter condition
+        let filter = { status };
+        if (accountType === "user") {
+            filter.user = accountID;
+        } else if (accountType === "admin") {
+            filter.admin = accountID;
+        }
+
+        // Query tasks
+        const tasks = await ModelTask.find(filter)
+            .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit)
-            .populate('user')
+            .populate("user", "_id fullName")
+            .populate("admin", "_id fullName")
+            .lean();
 
-        // Get total count of tasks with this status for pagination info
-        const totalTasks = await ModelTask.countDocuments(role === "admin" ? option2 : option);
+        const totalTasks = await ModelTask.countDocuments(filter);
         const totalPages = Math.ceil(totalTasks / limit);
 
-        // Prepare response with pagination metadata
-        const response = {
-            tasks: tasks,
+        const response = utils.JParser(`Tasks with status ${status} fetched successfully`, true, {
+            tasks,
             pagination: {
                 currentPage: page,
-                totalPages: totalPages,
-                totalTasks: totalTasks,
+                totalPages,
+                totalTasks,
                 tasksPerPage: limit,
                 hasNextPage: page < totalPages,
                 hasPreviousPage: page > 1
             }
-        };
+        });
 
-        return res.json(utils.JParser(`Tasks with status ${status} fetched successfully`, true, response));
+        return res.json(response);
     } catch (e) {
         throw new errorHandle(e.message, 400);
     }
 });
+
 
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -252,8 +294,8 @@ exports.tasksByStatus = useAsync(async (req, res) => {
 exports.taskComment = useAsync(async (req, res) => {
 
     try {
-        const userId = req.userId
-        const who = req.who
+        const accountType = req.userType
+        const accountID = req.userId
 
         //create data if all data available
         const schema = Joi.object({
@@ -266,9 +308,9 @@ exports.taskComment = useAsync(async (req, res) => {
 
         //validate data
         const validator = await schema.validateAsync(req.body);
-        validator.user = who === 2 ? userId : null
-        validator.employee = who === 1 ? userId : null
-        validator.createBy = who
+        validator.user = accountType === "user" ? accountID : null
+        validator.admin = accountType === "admin" ? accountID : null
+        validator.createBy = accountType === "admin" ? 2 : 1
         validator.task = taskId
 
         const tasks = await ModelTaskComment.create(validator)
@@ -287,7 +329,9 @@ exports.singleTaskComment = useAsync(async (req, res) => {
         if (!comment) return res.status(402).json(utils.JParser('provide the comment id', false, []));
 
         const tasks = await ModelTaskComment.findOne({ _id: comment })
-            .populate('user').populate('employee').populate('task')
+            .populate("user", "_id fullName userRole")
+            .populate("admin", "_id fullName userRole")
+            .populate('task')
 
         res.json(utils.JParser('Comment fetch successfully', !!tasks, tasks));
 
@@ -303,13 +347,19 @@ exports.taskComments = useAsync(async (req, res) => {
         if (!taskID) return res.status(402).json(utils.JParser('provide the task id', false, []));
 
         const task = await ModelTask.findOne({ _id: taskID })
-            .populate('employee')
+            .populate("user", "_id fullName userRole")
+            .populate("admin", "_id fullName userRole")
 
-        const comments = await ModelTaskComment.find({ task: task.id })
-            .populate('user').populate('employee')
+        if (task) {
+            const comments = await ModelTaskComment.find({ task: task._id })
+                .populate("user", "_id fullName userRole")
+                .populate("admin", "_id fullName userRole")
 
-        res.json(utils.JParser('Task comment fetch successfully', !!task, { task, comments }));
+            res.json(utils.JParser('Task comment fetch successfully', !!task, { task, comments }));
+        } else {
+            res.json(utils.JParser('Task not found', false, []));
 
+        }
     } catch (e) {
         throw new errorHandle(e.message, 400)
     }

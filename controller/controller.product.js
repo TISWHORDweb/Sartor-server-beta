@@ -7,10 +7,13 @@ const ModelRestock = require("../models/model.restock");
 const ModelSupplier = require("../models/model.supplier");
 const { genID } = require("../core/core.utils");
 const ModelBatch = require("../models/model.batch");
+const ModelUser = require("../models/model.user");
 
 
 exports.CreateProduct = useAsync(async (req, res) => {
     try {
+        const accountType = req.userType;
+        const accountID = req.userId;
         // if (!req.is('multipart/form-data')) {
         //   throw new errorHandle('Content-Type must be multipart/form-data', 400);
         // }
@@ -23,6 +26,7 @@ exports.CreateProduct = useAsync(async (req, res) => {
             productImage
         } = req.body;
 
+        let admin;
         // if (!productName || typeof productName !== 'string') {
         //   throw new errorHandle('Product name is required and must be a string', 400);
         // }
@@ -30,6 +34,16 @@ exports.CreateProduct = useAsync(async (req, res) => {
         // if (barcodeNumber && typeof barcodeNumber !== 'string') {
         //   throw new errorHandle('Barcode must be a string', 400);
         // }
+
+        if (accountType === "user") {
+            const user = await ModelUser.findOne({ _id: accountID })
+            if (!user) {
+                return res.status(400).json(utils.JParser('Invalid user, Try again later', false, []))
+            }
+            admin = user.admin
+        } else {
+            admin = accountID
+        }
 
         const batchId = await genID(2);
 
@@ -39,7 +53,8 @@ exports.CreateProduct = useAsync(async (req, res) => {
             manufacturer: manufacturer || null,
             description: description || null,
             productImage: productImage || null,
-            batchId
+            batchId,
+            admin
         });
 
         return res.json(utils.JParser('Product created successfully', !!product, product));
@@ -101,50 +116,72 @@ exports.DeleteProduct = useAsync(async (req, res) => {
 
 exports.GetAllProducts = useAsync(async (req, res) => {
     try {
+        const accountType = req.userType;
+        const accountID = req.userId;
         const page = parseInt(req.query.page) || 1;
         const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
         const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+        const search = req.query.search ? req.query.search.trim() : null;
 
-        // Get products without populate
-        const query = ModelProduct.find().lean();
-        if (limit !== null) query.skip(skip).limit(limit);
+        let filter = {};
+        if (accountType === "user") {
+            const user = await ModelUser.findOne({ _id: accountID });
+            if (!user) {
+                return res.status(400).json(utils.JParser('Invalid user, Try again later', false, []));
+            }
+            filter = { admin: user.admin };
+        } else if (accountType === "admin") {
+            filter = { admin: accountID };
+        }
+
+        // 🔍 Add search condition
+        if (search) {
+            const regex = new RegExp(search, "i"); // case-insensitive
+            filter.$or = [
+                { productName: regex },
+                { batchNumber: regex },
+                { barcodeNumber: regex },
+                { manufacturer: regex },
+                { description: regex },
+                { status: regex }
+            ];
+        }
+
+        // Get products
+        let query = ModelProduct.find(filter).lean();
+        if (limit !== null) query = query.skip(skip).limit(limit);
         const products = await query.exec();
 
-        // Get all product IDs
         const productIds = products.map(p => p._id);
 
-        // Get batches for these products with supplier information
-        const batches = await ModelBatch.find({ product: { $in: productIds } })
-            .lean();
+        // Get batches
+        const batches = await ModelBatch.find({ product: { $in: productIds } }).lean();
 
-        // Get supplier IDs from batches
+        // Suppliers
         const supplierIds = [...new Set(batches.map(b => b.supplier).filter(Boolean))];
-
-        // Get all suppliers in one query
         const suppliers = await ModelSupplier.find({ _id: { $in: supplierIds } })
             .lean()
-            .then(supps => supps.reduce((acc, s) => {
-                acc[s._id.toString()] = s;
-                return acc;
-            }, {}));
+            .then(supps =>
+                supps.reduce((acc, s) => {
+                    acc[s._id.toString()] = s;
+                    return acc;
+                }, {})
+            );
 
-        // Get restock data
+        // Restocks
         const restocks = await ModelRestock.find({ product: { $in: productIds } })
             .sort({ creationDateTime: -1 })
             .lean();
 
-        // Organize data for efficient joining
         const batchesByProduct = batches.reduce((acc, batch) => {
             const productId = batch.product.toString();
             if (!acc[productId]) acc[productId] = [];
 
-            // Attach supplier info if exists
-            const batchWithSupplier = {
+            acc[productId].push({
                 ...batch,
                 supplier: batch.supplier ? suppliers[batch.supplier.toString()] : null
-            };
+            });
 
-            acc[productId].push(batchWithSupplier);
             return acc;
         }, {});
 
@@ -158,7 +195,7 @@ exports.GetAllProducts = useAsync(async (req, res) => {
             return acc;
         }, {});
 
-        // Combine all data
+        // Combine
         const productsWithData = products.map(product => {
             const productId = product._id.toString();
             return {
@@ -168,12 +205,14 @@ exports.GetAllProducts = useAsync(async (req, res) => {
             };
         });
 
-        const response = utils.JParser('Products fetched successfully', !!products,
+        const response = utils.JParser(
+            'Products fetched successfully',
+            true,
             { data: productsWithData }
         );
 
         if (limit !== null) {
-            const totalProducts = await ModelProduct.countDocuments();
+            const totalProducts = await ModelProduct.countDocuments(filter);
             response.data.pagination = {
                 currentPage: page,
                 totalPages: Math.ceil(totalProducts / limit),
@@ -187,6 +226,7 @@ exports.GetAllProducts = useAsync(async (req, res) => {
         throw new errorHandle(e.message, 500);
     }
 });
+
 
 exports.GetSingleProduct = useAsync(async (req, res) => {
     try {
@@ -263,30 +303,46 @@ exports.GetAllProductBatch = useAsync(async (req, res) => {
 
 exports.CreateRestock = useAsync(async (req, res) => {
     try {
-        // Define schema for a single restock item
+        const accountType = req.userType;
+        const accountID = req.userId;
+
         const itemSchema = Joi.object({
             supplier: Joi.string().required(),
             product: Joi.string().required(),
             quantity: Joi.string().required()
         });
 
-        // Validate the entire array
         const schema = Joi.array().items(itemSchema).required();
-        const validator = await schema.validateAsync(req.body);
+        const validatedItems = await schema.validateAsync(req.body);
 
-        // Create all restocks in a single operation
-        const restocks = await ModelRestock.insertMany(validator);
+        let adminId;
 
-        return res.json(utils.JParser(
-            `${restocks.length} restocks created successfully`,
-            true,
-            restocks
-        ));
+        if (accountType === "user") {
+            const user = await ModelUser.findOne({ _id: accountID }).lean();
+            if (!user) {
+                return res.json(utils.JParser("Invalid user, Try again later", false, []));
+            }
+            adminId = user.admin;
+        } else {
+            adminId = accountID;
+        }
 
+        // Attach user/admin info to each item
+        const restocksWithMeta = validatedItems.map(item => ({
+            ...item,
+            admin: adminId
+        }));
+
+        const restocks = await ModelRestock.insertMany(restocksWithMeta);
+
+        return res.json(
+            utils.JParser(`${restocks.length} restocks created successfully`, true, restocks)
+        );
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }
 });
+
 
 exports.UpdateRestock = useAsync(async (req, res) => {
     try {
@@ -336,11 +392,21 @@ exports.DeleteRestock = useAsync(async (req, res) => {
 
 exports.GetAllRestocks = useAsync(async (req, res) => {
     try {
+        const accountType = req.userType;
+        const accountID = req.userId;
+
         const page = parseInt(req.query.page) || 1;
         const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
         const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
 
-        const query = ModelRestock.find()
+        let filter = {};
+        if (accountType === "user") {
+            filter = { user: accountID };
+        } else if (accountType === "admin") {
+            filter = { admin: accountID };
+        }
+
+        const query = ModelRestock.find(filter)
             .populate('supplier')
             .populate('product')
             .lean();
@@ -392,6 +458,10 @@ exports.GetSingleRestock = useAsync(async (req, res) => {
 
 exports.CreateSupplier = useAsync(async (req, res) => {
     try {
+
+        const accountType = req.userType;
+        const accountID = req.userId;
+
         const schema = Joi.object({
             name: Joi.string().required(),
             product: Joi.string().optional(),
@@ -405,6 +475,16 @@ exports.CreateSupplier = useAsync(async (req, res) => {
         });
 
         const validator = await schema.validateAsync(req.body);
+
+        if (accountType === "user") {
+            const user = await ModelUser.findOne({ _id: accountID })
+            if (!user) {
+                return res.status(400).json(utils.JParser('Invalid user, Try again later', false, []))
+            }
+            validator.admin = user.admin
+        } else {
+            validator.admin = accountID
+        }
 
         const validates = await ModelSupplier.findOne({ email: validator.email })
         if (validates) {
@@ -473,24 +553,50 @@ exports.DeleteSupplier = useAsync(async (req, res) => {
 
 exports.GetAllSuppliers = useAsync(async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
-        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+        const accountType = req.userType;
+        const accountID = req.userId;
 
-        const query = ModelSupplier.find().lean();
+        let filter = {};
+        if (accountType === "user") {
+            const user = await ModelUser.findOne({ _id: accountID });
+            if (!user) {
+                return res
+                    .status(400)
+                    .json(utils.JParser("Invalid user, Try again later", false, []));
+            }
+            filter = { admin: user.admin };
+        } else if (accountType === "admin") {
+            filter = { admin: accountID };
+        }
+
+        // 🔍 Search filter
+        if (req.query.search) {
+            const searchRegex = new RegExp(req.query.search, "i"); // case-insensitive
+            filter.$or = [
+                { name: searchRegex },
+                { product: searchRegex },
+                { contactName: searchRegex },
+                { contactRole: searchRegex },
+                { contactNumber: searchRegex },
+                { phone: searchRegex },
+                { email: searchRegex },
+                { branch: searchRegex },
+                { address: searchRegex }
+            ];
+        }
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === "all" ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === "all" ? 0 : (page - 1) * limit;
+
+        const query = ModelSupplier.find(filter).lean();
         if (limit !== null) query.skip(skip).limit(limit);
         const suppliers = await query.exec();
 
+        const supplierIds = suppliers.map((s) => s._id);
 
-        const supplierIds = suppliers.map(s => s._id);
-
-        const products = await ModelProduct.find({ supplier: { $in: supplierIds } })
-            // .select('productName quantity _id supplier')
-            .lean();
-
-        const restocks = await ModelRestock.find({ supplier: { $in: supplierIds } })
-            // .select('quantity creationDateTime product')
-            .lean();
+        const products = await ModelProduct.find({ supplier: { $in: supplierIds } }).lean();
+        const restocks = await ModelRestock.find({ supplier: { $in: supplierIds } }).lean();
 
         const productsBySupplier = products.reduce((acc, product) => {
             if (!acc[product.supplier]) acc[product.supplier] = [];
@@ -504,23 +610,23 @@ exports.GetAllSuppliers = useAsync(async (req, res) => {
             return acc;
         }, {});
 
-        const suppliersWithDetails = suppliers.map(supplier => ({
+        const suppliersWithDetails = suppliers.map((supplier) => ({
             ...supplier,
             products: productsBySupplier[supplier._id] || [],
-            restocks: restocksBySupplier[supplier._id] || []
+            restocks: restocksBySupplier[supplier._id] || [],
         }));
 
-        const response = utils.JParser('Suppliers fetched successfully', true,
-            { data: suppliersWithDetails }
-        );
+        const response = utils.JParser("Suppliers fetched successfully", true, {
+            data: suppliersWithDetails,
+        });
 
         if (limit !== null) {
-            const totalSuppliers = await ModelSupplier.countDocuments();
+            const totalSuppliers = await ModelSupplier.countDocuments(filter); // ✅ count with filter
             response.data.pagination = {
                 currentPage: page,
                 totalPages: Math.ceil(totalSuppliers / limit),
                 totalSuppliers,
-                limit
+                limit,
             };
         }
 
@@ -529,6 +635,7 @@ exports.GetAllSuppliers = useAsync(async (req, res) => {
         throw new errorHandle(e.message, 500);
     }
 });
+
 
 exports.GetSingleSupplier = useAsync(async (req, res) => {
     try {
@@ -570,6 +677,23 @@ exports.GetSingleSupplier = useAsync(async (req, res) => {
 
 exports.CreateBatch = useAsync(async (req, res) => {
     try {
+
+        const accountType = req.userType
+        const accountID = req.userId
+
+
+        let admin;
+
+        if (accountType === "user") {
+            const user = await ModelUser.findOne({ _id: accountID }).lean();
+            if (!user) {
+                return res.status(400).json(utils.JParser("Invalid user, Try again later", false, []));
+            }
+            admin = user.admin;
+        } else {
+            admin = accountID;
+        }
+
         const schema = Joi.object({
             manufacturer: Joi.string().required(),
             product: Joi.string().required(),
@@ -595,8 +719,10 @@ exports.CreateBatch = useAsync(async (req, res) => {
 
             const batchNumber = batchItem.batchNumber
 
+            batchItem.admin = admin
+
             if (batchNumber) {
-                const existingBatch = await ModelBatch.findOne({ batchNumber });
+                const existingBatch = await ModelBatch.findOne({ admin, batchNumber });
                 if (existingBatch) {
                     return res.status(400).json(utils.JParser(`Batch with batchNumber ${batchNumber} already exists`, false, []));
                 }
@@ -611,7 +737,7 @@ exports.CreateBatch = useAsync(async (req, res) => {
                 image: validator.image,
                 receipt: validator.receipt,
                 creationDateTime: Date.now(),
-                updated_at: Date.now()
+                updated_at: Date.now(),
             };
             return ModelBatch.create(batchData);
         });
@@ -627,27 +753,75 @@ exports.CreateBatch = useAsync(async (req, res) => {
 // Get All Batches
 exports.GetAllBatches = useAsync(async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
-        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+        const accountType = req.userType;
+        const accountID = req.userId;
 
-        const query = ModelBatch.find()
-            .populate('supplier')
-            .populate('product')
+        let filter = {};
+        if (accountType === "user") {
+            const user = await ModelUser.findOne({ _id: accountID });
+            if (!user) {
+                return res
+                    .status(400)
+                    .json(utils.JParser("Invalid user, Try again later", false, []));
+            }
+            filter = { admin: user.admin };
+        } else if (accountType === "admin") {
+            filter = { admin: accountID };
+        }
+
+        // 🔍 Add search support
+        if (req.query.search) {
+            const searchRegex = new RegExp(req.query.search, "i"); // case-insensitive
+
+            filter.$or = [
+                { batchNumber: searchRegex },
+                { manufacturer: searchRegex },
+                { invoiceNumber: searchRegex },
+                { notes: searchRegex },
+                { status: searchRegex },
+            ];
+        }
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === "all" ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === "all" ? 0 : (page - 1) * limit;
+
+        const query = ModelBatch.find(filter)
+            .populate("supplier")
+            .populate("product")
             .lean();
 
         if (limit !== null) query.skip(skip).limit(limit);
-        const batches = await query.exec();
 
-        const response = utils.JParser('Batches fetched successfully', !!batches, { data: batches });
+        let batches = await query.exec();
+
+        // ✅ Optional: also filter populated fields (supplier/product) in-memory
+        if (req.query.search) {
+            const searchRegex = new RegExp(req.query.search, "i");
+            batches = batches.filter(
+                (b) =>
+                    searchRegex.test(b.batchNumber) ||
+                    searchRegex.test(b.manufacturer || "") ||
+                    searchRegex.test(b.invoiceNumber || "") ||
+                    searchRegex.test(b.notes || "") ||
+                    searchRegex.test(b.status || "") ||
+                    (b.supplier && searchRegex.test(b.supplier.name || "")) ||
+                    (b.product && searchRegex.test(b.product.productName || ""))
+            );
+        }
+
+        const response = utils.JParser("Batches fetched successfully", true, {
+            data: batches,
+        });
 
         if (limit !== null) {
-            const totalBatches = await ModelBatch.countDocuments();
+            // ⚠️ Count only with DB filter (before in-memory filtering of populated fields)
+            const totalBatches = await ModelBatch.countDocuments(filter);
             response.data.pagination = {
                 currentPage: page,
                 totalPages: Math.ceil(totalBatches / limit),
                 totalBatches,
-                limit
+                limit,
             };
         }
 
@@ -656,6 +830,7 @@ exports.GetAllBatches = useAsync(async (req, res) => {
         throw new errorHandle(e.message, 500);
     }
 });
+
 
 // Get Single Batch
 exports.GetSingleBatch = useAsync(async (req, res) => {
@@ -717,7 +892,7 @@ exports.DeleteBatch = useAsync(async (req, res) => {
 exports.calculateProductPricing = useAsync(async (req, res) => {
     try {
         const { id } = req.params;
-        const productId = id 
+        const productId = id
 
         if (!productId) {
             throw new errorHandle('Product ID is required', 400);
@@ -743,7 +918,7 @@ exports.calculateProductPricing = useAsync(async (req, res) => {
         let totalQuantity = 0;
 
         batches.forEach(batch => {
-            const quantity = batch.quantity  === 0 ? 1 : batch.quantity
+            const quantity = batch.quantity === 0 ? 1 : batch.quantity
             totalCostValue += batch.sellingPrice * quantity;
             totalQuantity += quantity;
         });

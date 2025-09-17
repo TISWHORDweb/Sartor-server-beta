@@ -101,9 +101,6 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
     },
-    lastLogin: {
-        type: String,
-    },
     online: {
         type: String,
     },
@@ -112,20 +109,22 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ["Manager", "Super-Admin", "Admin", "Sales Rep", "Inventory Manager", "Merchandiser"],
+        enum: ["Manager", "Admin", "Sales Rep", "Inventory Manager", "Merchandiser"],
         default: "Manager"
-    },
-    userRole: {
-        type: String,
-        enum: ["admin", "user"],
-        default: "user"
     },
     isDeleted: {
         type: Boolean,
         default: false
     },
+    userRole: {
+        type: String,
+        default: "user"
+    },
     type: { type: Number, default: 0 },
-    adminID: { type: String },
+    admin: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-admin'
+    },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }
 })

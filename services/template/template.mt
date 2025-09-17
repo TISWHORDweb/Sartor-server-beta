@@ -36,7 +36,9 @@
         <!-- Header Section -->
         <div class="header-content" style="background: white; padding: 40px 40px 20px; text-align: center;">
             <div class="logo-container" style="margin-bottom: 15px;">
-                <img src="https://res.cloudinary.com/dwua55lnu/image/upload/v1753376622/logo_kn8bxg.png" alt="Sartor CRM Logo" style="max-width: 160px; height: auto;">
+<img src="https://res.cloudinary.com/dwua55lnu/image/upload/f_png/v1753376622/logo_kn8bxg.png" 
+     alt="Sartor CRM Logo" 
+     style="max-width: 160px; height: auto; display:block; border:0;">
             </div>
         </div>
 
@@ -49,11 +51,6 @@
 
         <!-- Footer Section -->
         <div class="footer-content" style="background: #f8f9fb; padding: 30px 40px; text-align: center; border-top: 1px solid #e2e8f0;">
-            <div style="margin-bottom: 20px;">
-                <span style="display: inline-block; background: #1a237e; padding: 8px 12px; border-radius: 6px; margin: 0 5px; color: white; font-size: 14px;">🛡️</span>
-                <span style="display: inline-block; background: #1a237e; padding: 8px 12px; border-radius: 6px; margin: 0 5px; color: white; font-size: 14px;">📦</span>
-                <span style="display: inline-block; background: #1a237e; padding: 8px 12px; border-radius: 6px; margin: 0 5px; color: white; font-size: 14px;">🧠</span>
-            </div>
             
             <p style="margin: 0 0 15px 0; font-size: 14px; color: #718096;">
                 Powered by Advanced Technology Solutions

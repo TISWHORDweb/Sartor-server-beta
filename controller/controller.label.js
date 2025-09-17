@@ -13,6 +13,7 @@ const { uploadToCloudinary } = require("../core/core.cloudinary");
 
 exports.CreateLabel = useAsync(async (req, res) => {
     try {
+        const admin = req.adminID
 
         const labelSchema = Joi.object({
             batch: Joi.string().required(),
@@ -20,6 +21,8 @@ exports.CreateLabel = useAsync(async (req, res) => {
         });
 
         const validator = await labelSchema.validateAsync(req.body);
+        validator.admin = admin
+
         const newLabel = await ModelLabel.create(validator);
 
         return res.status(201).json(
@@ -32,27 +35,42 @@ exports.CreateLabel = useAsync(async (req, res) => {
 
 exports.GetAllLabels = useAsync(async (req, res) => {
     try {
+        const admin = req.adminID;
         const page = parseInt(req.query.page) || 1;
         const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
         const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
 
-        const query = ModelLabel.find()
-            .populate('product')
+        const search = req.query.search ? req.query.search.trim() : null;
+
+        // Base filter
+        let filter = { admin };
+
+        // Search support
+        if (search) {
+            const searchRegex = new RegExp(search, "i");
+            filter.$or = [
+                { status: searchRegex },
+                { image: searchRegex },
+                { subImage: searchRegex }
+            ];
+        }
+
+        let query = ModelLabel.find(filter)
+            .populate("product")
             .populate({
-                path: 'batch',
-                populate: {
-                    path: 'supplier', // <-- populate supplier inside batch
-                },
+                path: "batch",
+                populate: { path: "supplier" }
             })
             .lean();
 
-        if (limit !== null) query.skip(skip).limit(limit);
+        if (limit !== null) query = query.skip(skip).limit(limit);
+
         const labels = await query.exec();
 
-        const response = utils.JParser('Labels fetched successfully', !!labels, { data: labels });
+        const response = utils.JParser("Labels fetched successfully", true, { data: labels });
 
         if (limit !== null) {
-            const totalLabels = await ModelLabel.countDocuments();
+            const totalLabels = await ModelLabel.countDocuments(filter);
             response.data.pagination = {
                 currentPage: page,
                 totalPages: Math.ceil(totalLabels / limit),
@@ -182,19 +200,19 @@ exports.uploadLabel = useAsync(async (req, res) => {
             if (req.body.product_name) form.append('product_name', req.body.product_name);
             if (req.body.sku) form.append('sku', req.body.sku);
             if (req.file) {
-                form.append('images', fs.createReadStream(req.file.path), {
+                form.append('image', fs.createReadStream(req.file.path), {
                     filename: req.file.originalname,
                     contentType: req.file.mimetype
                 });
             }
- 
+
             const apiResponse = await axios.post(
-                `${process.env.LABEL_BASE_URL}/upload-labels`,
+                `${process.env.LABEL_BASE_URL}/upload_label`,
                 form,
                 { headers: form.getHeaders() }
             );
-            console.log("console.log "+apiResponse);
-            
+            console.log("console.log " + apiResponse);
+
 
             if (apiResponse.data?.modified_images?.length > 0) {
 
@@ -237,8 +255,8 @@ exports.uploadLabel = useAsync(async (req, res) => {
             return res.status(400).json(utils.JParser('Label not found', false, []));
         }
     } catch (e) {
-        console.log(e);
-        
+        console.log("newerror.  " + e);
+
         throw new errorHandle(e.message, 500);
     }
 });

@@ -12,6 +12,10 @@ const taskCommentSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'model-user',
     },
+    admin: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-admin',
+    },
     isDeleted: {
         type: Boolean,
         default: false

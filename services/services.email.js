@@ -1,7 +1,3 @@
-'use strict';
-/**
- * Slantapp code and properties {www.slantapp.io}
- */
 const nodemailer = require("nodemailer");
 const fs = require('fs');
 require('dotenv').config();

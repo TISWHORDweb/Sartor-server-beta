@@ -18,6 +18,15 @@ const customerSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    admin: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-admin',
+        required: true
+    },
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-user'
+    },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }
 })

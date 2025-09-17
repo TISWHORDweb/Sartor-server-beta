@@ -36,6 +36,10 @@ const productSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    admin: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-admin'
+    },
     batchId: { type: String },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }

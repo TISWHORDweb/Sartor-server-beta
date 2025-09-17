@@ -32,7 +32,6 @@ const invoiceSchema = new mongoose.Schema({
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'model-user',
-        required: true
     },
     status: {
         type: String,
@@ -42,6 +41,11 @@ const invoiceSchema = new mongoose.Schema({
     isDeleted: {
         type: Boolean,
         default: false
+    },
+    admin: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-admin',
+        required: true
     },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }

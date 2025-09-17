@@ -23,19 +23,19 @@ const { universalSearch } = require('../controller/controller.search');
  */
 
 //USER
-router.post('/user/create',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), createUser );
+router.post('/user/create', useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), createUser );
 router.get('/user/details', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), getUser);
 router.put('/user/edit',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), editUser  );
 router.get('/users',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), allUser  );
 router.delete('/user/delete',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), deleteUser  );
 router.get('/user/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), singleUser  );
-router.get('/user/role/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetUsersByRole  );
+router.get('/user/role/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), GetUsersByRole  );
 router.get('/dashboard', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetDashboardSummary  );
 
 ////TASKS
-router.post('/task/create', useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), CreateTask );
-router.put('/task/edit', useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), editTask );
-router.delete('/task/delete', useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), deleteTasks );
+router.post('/task/create', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateTask );
+router.put('/task/edit', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), editTask );
+router.delete('/task/delete', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), deleteTasks );
 router.get('/tasks', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), getTasks );
 router.get('/task/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), singleTask );
 router.put('/task/status/update', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), changeTaskStatus );
@@ -53,7 +53,6 @@ router.delete('/lead/delete/:id', useAsync(authMiddleware), useAsync(roleMiddlew
 router.get('/leads', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllLeads );
 router.get('/lead/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleLead );
 router.put('/lead/status/update', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), updateLeadStatus );
-router.get('/lead/user/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllUserLeads );
 
 //LPO
 router.post('/lpo', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateLpo );
@@ -62,7 +61,6 @@ router.delete('/lpo/delete/:id', useAsync(authMiddleware), useAsync(roleMiddlewa
 router.get('/lpos', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllLpos );
 router.get('/lpo/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleLpo );
 router.put('/lpo/status/update', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), updateLPOStatus );
-router.get('/lpo/user/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllUserLpos );
 
 //SUPPLIER
 router.post('/supplier', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateSupplier );
@@ -93,17 +91,16 @@ router.delete('/invoice/delete/:id', useAsync(authMiddleware), useAsync(roleMidd
 router.get('/invoices', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllInvoices );
 router.get('/invoice/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleInvoice );
 router.put('/invoice/status/update', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), changeInvoiceStatus );
-router.get('/invoice/user/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllUserInvoices );
 
 //BATCH
-router.post('/batch', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateBatch );
+router.post('/batch',  useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateBatch );
 router.put('/batch/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdateBatch );
 router.delete('/batch/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteBatch );
 router.get('/batchs', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllBatches );
 router.get('/batch/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleBatch );
 
 //LABEL
-router.post('/label/upload', upload.single('images'), uploadLabel );
+router.post('/label/upload', upload.single('image'), uploadLabel );
 router.post('/label/verify', upload.single('image'), verifyLabel );
 router.post('/label/webhook', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), labelTrainWebhook );
 router.post('/label', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateLabel );
@@ -117,7 +114,6 @@ router.get('/customers', useAsync(authMiddleware), useAsync(roleMiddleware(['use
 router.put('/customer/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])),  UpdateCustomer );
 router.delete('/customer/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteCustomer );
 router.get('/customer/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetCustomer );
-router.get('/customer/user/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllUserCustomer );
 
 //UNIVERSAL SEARCH
 router.post('/search', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), universalSearch );

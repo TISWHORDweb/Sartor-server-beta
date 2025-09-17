@@ -14,6 +14,7 @@ const ModelCustomer = require("../models/model.customer");
 const { Types } = require('mongoose');
 const ModelBatch = require("../models/model.batch");
 const ModelCommission = require("../models/moddel.commision");
+const ModelUser = require("../models/model.user");
 
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -21,6 +22,10 @@ const ModelCommission = require("../models/moddel.commision");
 //////////////////////////////////////////////////////////////////////////////////////
 exports.CreateLpo = useAsync(async (req, res) => {
     try {
+
+        const accountType = req.userType
+        const accountID = req.userId
+
         const schema = Joi.object({
             lead: Joi.string().min(3).required(),
             terms: Joi.string().min(3).required(),
@@ -28,6 +33,17 @@ exports.CreateLpo = useAsync(async (req, res) => {
         });
 
         const validator = await schema.validateAsync(req.body);
+
+        if (accountType === "user") {
+            validator.user = accountID
+            const user = await ModelUser.findOne({ _id: accountID })
+            if (!user) {
+                return res.status(400).json(utils.JParser('Invalid user, Try again later', false, []))
+            }
+            validator.admin = user.admin
+        } else {
+            validator.admin = accountID
+        }
 
         validator.lpoId = await genID(7)
 
@@ -104,26 +120,53 @@ exports.DeleteLpo = useAsync(async (req, res) => {
 
 exports.GetAllLpos = useAsync(async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
-        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+        const accountType = req.userType;
+        const accountID = req.userId;
 
-        const query = ModelLpo.find().populate('lead').lean();
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === "all" ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === "all" ? 0 : (page - 1) * limit;
+
+        let filter = {};
+        if (accountType === "user") {
+            filter.user = accountID;
+        } else if (accountType === "admin") {
+            filter.admin = accountID;
+        }
+
+        // 🔎 Revamped search
+        const search = req.query.search ? req.query.search.trim() : null;
+        if (search) {
+            filter.$or = [
+                { lpoId: { $regex: search, $options: "i" } },   // match LPO ID
+                { status: { $regex: search, $options: "i" } },  // match status
+                { terms: { $regex: search, $options: "i" } },   // match terms
+            ];
+        }
+
+        let query = ModelLpo.find(filter)
+            .populate("user", "_id fullName")
+            .populate("admin", "_id fullName")
+            .populate("lead") // can extend with fields
+            .lean();
+
         if (limit !== null) {
             query.skip(skip).limit(limit);
         }
+
         const lpos = await query.exec();
-
         const lpoIds = lpos.map(lpo => lpo._id);
-        const products = await ModelLpoProduct.find({ lpo: { $in: lpoIds } }).populate('product');
+
+        const products = await ModelLpoProduct.find({ lpo: { $in: lpoIds } })
+            .populate("product");
 
         const productsByLpoId = products.reduce((acc, product) => {
             if (!product.lpo) return acc;
             if (!acc[product.lpo]) acc[product.lpo] = [];
 
             const quantity = parseFloat(product.quantity) || 0;
-            const unitPrice = (product.product && !isNaN(parseFloat(product.product.unitPrice)))
-                ? parseFloat(product.product.unitPrice)
+            const unitPrice = (product.product && !isNaN(parseFloat(product.product.price)))
+                ? parseFloat(product.product.price)
                 : 0;
 
             const productAmount = unitPrice * quantity;
@@ -131,7 +174,7 @@ exports.GetAllLpos = useAsync(async (req, res) => {
             acc[product.lpo].push({
                 ...product.toObject(),
                 amount: productAmount,
-                quantity: quantity
+                quantity
             });
 
             return acc;
@@ -139,10 +182,7 @@ exports.GetAllLpos = useAsync(async (req, res) => {
 
         const lposWithProducts = lpos.map(lpo => {
             const lpoProducts = productsByLpoId[lpo._id] || [];
-
-            const totalAmount = lpoProducts.reduce((sum, product) => {
-                return sum + (product.amount || 0);
-            }, 0);
+            const totalAmount = lpoProducts.reduce((sum, product) => sum + (product.amount || 0), 0);
 
             return {
                 ...lpo,
@@ -151,10 +191,10 @@ exports.GetAllLpos = useAsync(async (req, res) => {
             };
         });
 
-        const response = utils.JParser('LPOs fetched successfully', true, { lpos: lposWithProducts });
+        const response = utils.JParser("LPOs fetched successfully", true, { lpos: lposWithProducts });
 
         if (limit !== null) {
-            const totalLpos = await ModelLpo.countDocuments();
+            const totalLpos = await ModelLpo.countDocuments(filter);
             response.data.pagination = {
                 currentPage: page,
                 totalPages: Math.ceil(totalLpos / limit),
@@ -164,125 +204,21 @@ exports.GetAllLpos = useAsync(async (req, res) => {
         }
 
         return res.json(response);
-
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }
 });
 
-exports.GetAllUserLpos = useAsync(async (req, res) => {
-    try {
 
-        const page = parseInt(req.query.page) || 1;
-        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
-        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
-
-        const userObjectId = Types.ObjectId(req.params.id);
-
-        // Find leads first, then LPOs
-        const userLeads = await ModelLead.find({ user: userObjectId }).select('_id');
-        const leadIds = userLeads.map(lead => lead._id);
-
-        if (leadIds.length === 0) {
-            // No leads found for this user
-            const response = utils.JParser('No LPOs found for this user', true, {
-                lpos: [],
-                pagination: limit !== null ? {
-                    currentPage: page,
-                    totalPages: 0,
-                    totalLpos: 0,
-                    limit
-                } : undefined
-            });
-            return res.json(response);
-        }
-
-        // Build query to find LPOs with these lead IDs
-        const lposQuery = ModelLpo.find({ lead: { $in: leadIds } })
-            .populate('lead');
-
-        let lpos;
-        let totalLpos;
-
-        if (limit !== null) {
-            lpos = await lposQuery
-                .skip(skip)
-                .limit(limit)
-                .lean();
-
-            totalLpos = await ModelLpo.countDocuments({ lead: { $in: leadIds } });
-        } else {
-            lpos = await lposQuery.lean();
-        }
-
-        // Get products for all LPOs
-        const lpoIds = lpos.map(lpo => lpo._id);
-        const products = await ModelLpoProduct.find({ lpo: { $in: lpoIds } }).populate('product');
-
-        // Organize products by LPO ID
-        const productsByLpoId = products.reduce((acc, product) => {
-            if (!product.lpo) return acc;
-            if (!acc[product.lpo]) acc[product.lpo] = [];
-
-            const quantity = parseFloat(product.quantity) || 0;
-            const unitPrice = (product.product && !isNaN(parseFloat(product.product.unitPrice)))
-                ? parseFloat(product.product.unitPrice)
-                : 0;
-
-            const productAmount = unitPrice * quantity;
-
-            acc[product.lpo].push({
-                ...product.toObject(),
-                amount: productAmount,
-                quantity: quantity
-            });
-
-            return acc;
-        }, {});
-
-        // Add products and calculate totals for each LPO
-        const lposWithProducts = lpos.map(lpo => {
-            const lpoProducts = productsByLpoId[lpo._id] || [];
-
-            const totalAmount = lpoProducts.reduce((sum, product) => {
-                return sum + (product.amount || 0);
-            }, 0);
-
-            return {
-                ...lpo,
-                products: lpoProducts,
-                totalAmount: parseFloat(totalAmount.toFixed(2))
-            };
-        });
-
-        // Build response
-        const response = utils.JParser('LPOs fetched successfully', true, {
-            lpos: lposWithProducts
-        });
-
-        // Add pagination info if limit is applied
-        if (limit !== null) {
-            response.data.pagination = {
-                currentPage: page,
-                totalPages: Math.ceil(totalLpos / limit),
-                totalLpos,
-                limit
-            };
-        }
-
-        return res.json(response);
-
-    } catch (e) {
-        console.error('Error in GetAllUserLpos:', e);
-        throw new errorHandle(e.message, 500);
-    }
-});
 
 exports.GetSingleLpo = useAsync(async (req, res) => {
     try {
         const { id } = req.params;
 
-        const lpo = await ModelLpo.findById(id).lean().populate('lead');
+        const lpo = await ModelLpo.findById(id).lean()
+            .populate("user", "_id fullName")
+            .populate("admin", "_id fullName")
+            .populate('lead');
 
         if (!lpo) {
             return res.status(404).json(utils.JParser('LPO not found', false, null));
@@ -333,19 +269,19 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
         // Check stock availability before any updates if status is "In Transit"
         if (status === "In Transit") {
             const lpoProducts = await ModelLpoProduct.find({ lpo: id }).populate('product');
-            
+
             for (const lpoProduct of lpoProducts) {
                 const productId = lpoProduct.product;
                 const quantityToDeduct = lpoProduct.quantity;
-                
+
                 // Calculate total available quantity across all batches
-                const batches = await ModelBatch.find({ 
+                const batches = await ModelBatch.find({
                     product: productId,
                     quantity: { $gt: 0 }
                 }).sort({ createdAt: 1 });
-                
+
                 const totalAvailableQuantity = batches.reduce((total, batch) => total + batch.quantity, 0);
-                
+
                 if (totalAvailableQuantity < quantityToDeduct) {
                     throw new errorHandle(`Insufficient stock for this product. Requested: ${quantityToDeduct}, Available: ${totalAvailableQuantity}`, 400);
                 }
@@ -369,31 +305,33 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
                 const customerId = await genID(3)
                 const newCustomer = await ModelCustomer.create({
                     lead: lpo.lead,
+                    user: updatedLPO.user,
+                    admin: updatedLPO.admin,
                     customerId,
                     status: "Active"
                 });
             }
-        } 
-        
+        }
+
         if (status === "In Transit") {
             const lpoProducts = await ModelLpoProduct.find({ lpo: id }).populate('product');
-            
+
             for (const lpoProduct of lpoProducts) {
                 const productId = lpoProduct.product;
                 const quantityToDeduct = lpoProduct.quantity;
-                
-                const batches = await ModelBatch.find({ 
+
+                const batches = await ModelBatch.find({
                     product: productId,
                     quantity: { $gt: 0 }
                 }).sort({ createdAt: 1 });
-                
+
                 let remainingQuantity = quantityToDeduct;
-                
+
                 for (const batch of batches) {
                     if (remainingQuantity <= 0) break;
-                    
+
                     const quantityInThisBatch = batch.quantity;
-                    
+
                     if (quantityInThisBatch >= remainingQuantity) {
                         batch.quantity -= remainingQuantity;
                         remainingQuantity = 0;
@@ -401,7 +339,7 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
                         remainingQuantity -= quantityInThisBatch;
                         batch.quantity = 0;
                     }
-                    
+
                     await batch.save();
                 }
             }
@@ -409,8 +347,7 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
 
         // Prepare response
         let response = {
-            lead: updatedLPO,
-            message: 'Lead status updated successfully'
+            updatedLPO
         };
 
         if (status === "Delivered" && !existingCustomer) {
@@ -433,11 +370,15 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
 
 exports.CreateLead = useAsync(async (req, res) => {
     try {
+
+        const accountID = req.userId
+        const accountType = req.userType
+
+
         //create data if all data available
         const schema = Joi.object({
             name: Joi.string().min(3).required(),
             address: Joi.string().min(3).required(),
-            user: Joi.string().required(),
             email: Joi.string().min(3).required(),
             phone: Joi.string().min(3).optional(),
             state: Joi.string().min(3).required(),
@@ -453,11 +394,21 @@ exports.CreateLead = useAsync(async (req, res) => {
 
         //validate data
         const validator = await schema.validateAsync(req.body);
+        if (accountType === "user") {
+            validator.user = accountID
+            const user = await ModelUser.findOne({ _id: accountID })
+            if (!user) {
+                return res.status(400).json(utils.JParser('Invalid user, Try again later', false, []))
+            }
+            validator.admin = user.admin
+        } else {
+            validator.admin = accountID
+        }
         validator.userId = userId
 
         const existingLead = await ModelLead.findOne({ email: validator.email })
         if (existingLead) {
-            return res.json(utils.JParser('Sorry theres another lead register with this email, chabge it and try again ', false, []))
+            return res.status(400).json(utils.JParser('Sorry theres another lead register with this email, chabge it and try again ', false, []))
         }
 
         let createdContacts;
@@ -477,6 +428,7 @@ exports.CreateLead = useAsync(async (req, res) => {
         }));
 
     } catch (e) {
+        console.log(e)
         throw new errorHandle(e.message, 500);
     }
 });
@@ -537,37 +489,67 @@ exports.DeleteLead = useAsync(async (req, res) => {
 
 exports.GetAllLeads = useAsync(async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1; // Current page (default: 1)
-        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
-        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+        const accountID = req.userId;
+        const accountType = req.userType;
 
-        const query = ModelLead.find().lean();
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === "all" ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === "all" ? 0 : (page - 1) * limit;
+
+        let filter = {};
+        if (accountType === "user") {
+            filter.user = accountID;
+        } else if (accountType === "admin") {
+            filter.admin = accountID;
+        }
+
+        // 🔎 Add search
+        const search = req.query.search ? req.query.search.trim() : null;
+        if (search) {
+            filter.$or = [
+                { name: { $regex: search, $options: "i" } },
+                { email: { $regex: search, $options: "i" } },
+                { phone: { $regex: search, $options: "i" } },
+                { address: { $regex: search, $options: "i" } },
+                { state: { $regex: search, $options: "i" } },
+                { lga: { $regex: search, $options: "i" } },
+                { type: { $regex: search, $options: "i" } },
+                { dealSize: { $regex: search, $options: "i" } },
+                { note: { $regex: search, $options: "i" } },
+                { status: { $regex: search, $options: "i" } },
+            ];
+        }
+
+        let query = ModelLead.find(filter)
+            .populate("user", "_id fullName")
+            .populate("admin", "_id fullName")
+            .lean();
+
         if (limit !== null) {
             query.skip(skip).limit(limit);
         }
-        const leads = await query.exec();
 
-        // 2. Get all contacts for these leads in a single query
-        const leadIds = leads.map(lead => lead._id);
+        const leads = await query.exec();
+        const leadIds = leads.map((lead) => lead._id);
+
+        // fetch contacts
         const contacts = await ModelLeadContact.find({ lead: { $in: leadIds } });
 
-        // 3. Group contacts by lead
         const contactsByLeadId = contacts.reduce((acc, contact) => {
             if (!acc[contact.lead]) acc[contact.lead] = [];
             acc[contact.lead].push(contact);
             return acc;
         }, {});
 
-        // 4. Attach contacts to leads
-        const leadsWithContacts = leads.map(lead => ({
+        const leadsWithContacts = leads.map((lead) => ({
             ...lead,
             contacts: contactsByLeadId[lead._id] || []
         }));
 
-        const response = utils.JParser('Leads fetched successfully', true, { leads: leadsWithContacts })
+        const response = utils.JParser("Leads fetched successfully", true, { leads: leadsWithContacts });
 
         if (limit !== null) {
-            const totalLeads = await ModelLead.countDocuments();
+            const totalLeads = await ModelLead.countDocuments(filter);
             response.data.pagination = {
                 currentPage: page,
                 totalPages: Math.ceil(totalLeads / limit),
@@ -583,58 +565,14 @@ exports.GetAllLeads = useAsync(async (req, res) => {
     }
 });
 
-exports.GetAllUserLeads = useAsync(async (req, res) => {
-    try {
-        const page = parseInt(req.query.page) || 1; // Current page (default: 1)
-        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
-        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
 
-        const query = ModelLead.find({ user: req.params.id }).lean();
-        if (limit !== null) {
-            query.skip(skip).limit(limit);
-        }
-        const leads = await query.exec();
-
-        // 2. Get all contacts for these leads in a single query
-        const leadIds = leads.map(lead => lead._id);
-        const contacts = await ModelLeadContact.find({ lead: { $in: leadIds } });
-
-        // 3. Group contacts by lead
-        const contactsByLeadId = contacts.reduce((acc, contact) => {
-            if (!acc[contact.lead]) acc[contact.lead] = [];
-            acc[contact.lead].push(contact);
-            return acc;
-        }, {});
-
-        // 4. Attach contacts to leads
-        const leadsWithContacts = leads.map(lead => ({
-            ...lead,
-            contacts: contactsByLeadId[lead._id] || []
-        }));
-
-        const response = utils.JParser('Leads fetched successfully', true, { leads: leadsWithContacts })
-
-        if (limit !== null) {
-            const totalLeads = await ModelLead.countDocuments();
-            response.data.pagination = {
-                currentPage: page,
-                totalPages: Math.ceil(totalLeads / limit),
-                totalLeads,
-                limit
-            };
-        }
-
-        return res.json(response);
-
-    } catch (e) {
-        throw new errorHandle(e.message, 500);
-    }
-});
 
 exports.GetSingleLead = useAsync(async (req, res) => {
     try {
         const { id } = req.params;
-        const lead = await ModelLead.findById(id);
+        const lead = await ModelLead.findById(id)
+            .populate("user", "_id fullName")
+            .populate("admin", "_id fullName")
 
         if (!lead) {
             return res.status(404).json(utils.JParser('Lead not found', false, null));
@@ -702,7 +640,7 @@ const createInvoiceFromLpo = async (lpoId) => {
         const lpoProducts = await ModelLpoProduct.find({ lpo: lpoId }).populate('product');
 
         if (!lpo) {
-            throw new Error('LPO not found');
+            throw new errorHandle('Lead not found', 404);
         }
 
         // Calculate invoice values
@@ -726,7 +664,8 @@ const createInvoiceFromLpo = async (lpoId) => {
         const invoice = await ModelInvoice.create({
             lpo: lpoId,
             lead: lpo.lead._id,
-            user: lpo.lead.user,
+            user: lpo.user,
+            admin: lpo.admin,
             name: lpo.lead.name, // Assuming lead has a name property
             dueDate: dueDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
             totalAmount: totalAmount.toString(),
@@ -745,20 +684,52 @@ const createInvoiceFromLpo = async (lpoId) => {
 
 exports.GetAllInvoices = useAsync(async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1; // Current page (default: 1)
-        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
-        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+        const accountID = req.userId;
+        const accountType = req.userType;
 
-        const query = ModelInvoice.find().populate("lead").populate("lpo").lean();
-        if (limit !== null) {
-            query.skip(skip).limit(limit);
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === "all" ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === "all" ? 0 : (page - 1) * limit;
+
+        const search = req.query.search ? req.query.search.trim() : null;
+
+        // Base filter by user/admin
+        let filter = {};
+        if (accountType === "user") {
+            filter = { user: accountID };
+        } else if (accountType === "admin") {
+            filter = { admin: accountID };
         }
+
+        // Add search conditions if provided
+        if (search) {
+            const searchRegex = new RegExp(search, "i"); // case-insensitive
+            filter.$or = [
+                { name: searchRegex },
+                { invoiceId: searchRegex },
+                { products: searchRegex },
+                { status: searchRegex },
+                // If lpo or lead has searchable fields, you’ll need aggregate or populate + filter after fetch
+            ];
+        }
+
+        let query = ModelInvoice.find(filter)
+            .populate("lead")
+            .populate("lpo")
+            .populate("admin", "_id fullName")
+            .populate("user", "_id fullName")
+            .lean();
+
+        if (limit !== null) {
+            query = query.skip(skip).limit(limit);
+        }
+
         const invoices = await query.exec();
 
-        const response = utils.JParser('Invoice fetched successfully', true, { invoices })
+        const response = utils.JParser("Invoice fetched successfully", true, { invoices });
 
         if (limit !== null) {
-            const totalInvoice = await ModelInvoice.countDocuments();
+            const totalInvoice = await ModelInvoice.countDocuments(filter);
             response.data.pagination = {
                 currentPage: page,
                 totalPages: Math.ceil(totalInvoice / limit),
@@ -768,48 +739,22 @@ exports.GetAllInvoices = useAsync(async (req, res) => {
         }
 
         return res.json(response);
-
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }
 });
 
 
-exports.GetAllUserInvoices = useAsync(async (req, res) => {
-    try {
-        const page = parseInt(req.query.page) || 1; // Current page (default: 1)
-        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
-        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
-
-        const query = ModelInvoice.find({ user: req.params.id }).populate("lead").populate("lpo").populate("user").lean();
-        if (limit !== null) {
-            query.skip(skip).limit(limit);
-        }
-        const invoices = await query.exec();
-
-        const response = utils.JParser('Invoice fetched successfully', true, { invoices })
-
-        if (limit !== null) {
-            const totalInvoice = await ModelInvoice.countDocuments();
-            response.data.pagination = {
-                currentPage: page,
-                totalPages: Math.ceil(totalInvoice / limit),
-                totalInvoice,
-                limit
-            };
-        }
-
-        return res.json(response);
-
-    } catch (e) {
-        throw new errorHandle(e.message, 500);
-    }
-});
 
 exports.GetSingleInvoice = useAsync(async (req, res) => {
     try {
         const { id } = req.params;
-        const invoice = await ModelInvoice.findById(id).populate("lead").populate("lpo").lean();
+        const invoice = await ModelInvoice.findById(id)
+            .populate("lead")
+            .populate("lpo")
+            .populate("admin", "_id fullName")
+            .populate("user", "_id fullName")
+            .lean();
 
         if (!invoice) {
             return res.status(404).json(utils.JParser('Invoice not found', false, null));
@@ -870,79 +815,47 @@ exports.changeInvoiceStatus = useAsync(async (req, res) => {
 
 exports.GetAllCustomer = useAsync(async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
-        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+        const accountID = req.userId;
+        const accountType = req.userType;
 
-        const query = ModelCustomer.find()
-            .populate('lead')
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === "all" ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === "all" ? 0 : (page - 1) * limit;
+
+        const search = req.query.search ? req.query.search.trim() : null;
+
+        // Base filter
+        let filter = {};
+        if (accountType === "user") {
+            filter = { user: accountID };
+        } else if (accountType === "admin") {
+            filter = { admin: accountID };
+        }
+
+        // Add search
+        if (search) {
+            const searchRegex = new RegExp(search, "i"); // case-insensitive
+            filter.$or = [
+                { customerId: searchRegex },
+                { status: searchRegex },
+                // If lead has fields like name/email, aggregate or extra populate + filter needed
+            ];
+        }
+
+        let query = ModelCustomer.find(filter)
+            .populate("lead")
+            .populate("admin", "_id fullName")
+            .populate("user", "_id fullName")
             .lean();
 
-        if (limit !== null) query.skip(skip).limit(limit);
-        const customer = await query.exec();
+        if (limit !== null) query = query.skip(skip).limit(limit);
 
-        const response = utils.JParser('Customer fetched successfully', !!customer, { data: customer });
+        const customers = await query.exec();
 
-        if (limit !== null) {
-            const totalLabels = await ModelCustomer.countDocuments();
-            response.data.pagination = {
-                currentPage: page,
-                totalPages: Math.ceil(totalLabels / limit),
-                totalLabels,
-                limit
-            };
-        }
-
-        return res.json(response);
-    } catch (e) {
-        throw new errorHandle(e.message, 500);
-    }
-});
-
-exports.GetAllUserCustomer = useAsync(async (req, res) => {
-    try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
-        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
-
-        const userObjectId = Types.ObjectId(req.params.id);
-        const userLeads = await ModelLead.find({ user: userObjectId }).select('_id');
-
-        const leadIds = userLeads.map(lead => lead._id);
-
-        if (leadIds.length === 0) {
-            const response = utils.JParser('No Customer found for this user', true, {
-                customer: [],
-                pagination: limit !== null ? {
-                    currentPage: page,
-                    totalPages: 0,
-                    totalCustomers: 0,
-                    limit
-                } : undefined
-            });
-            return res.json(response);
-        }
-
-        const query = ModelCustomer.find({ lead: { $in: leadIds } })
-            .populate('lead')
-            .lean();
+        const response = utils.JParser("Customer fetched successfully", true, { customers });
 
         if (limit !== null) {
-            query.skip(skip).limit(limit);
-        }
-
-        const customer = await query.exec();
-        console.log('Found customers:', customer.length);
-
-        const response = utils.JParser('Customer fetched successfully', !!customer, {
-            customer: customer
-        });
-
-        if (limit !== null) {
-            const totalCustomers = await ModelCustomer.countDocuments({
-                lead: { $in: leadIds }
-            });
-
+            const totalCustomers = await ModelCustomer.countDocuments(filter);
             response.data.pagination = {
                 currentPage: page,
                 totalPages: Math.ceil(totalCustomers / limit),
@@ -953,14 +866,20 @@ exports.GetAllUserCustomer = useAsync(async (req, res) => {
 
         return res.json(response);
     } catch (e) {
-        console.error('Error in GetAllUserCustomer:', e);
         throw new errorHandle(e.message, 500);
     }
 });
 
+
+
 exports.GetCustomer = useAsync(async (req, res) => {
     try {
-        const customer = await ModelCustomer.findById(req.params.id).populate('lead').lean();
+        const customer = await ModelCustomer.findById(req.params.id)
+            .populate("lead")
+            .populate("admin", "_id fullName")
+            .populate("user", "_id fullName")
+            .lean();
+
         if (!customer) throw new errorHandle('Customer not found', 404);
 
         return res.json(utils.JParser('Label fetched successfully', true, customer));
@@ -1023,7 +942,7 @@ exports.GetAllUserCommision = useAsync(async (req, res) => {
             query.skip(skip).limit(limit);
         }
         const invoices = await query.exec();
-        const Commission = await ModelCommission.findOne({status:true})
+        const Commission = await ModelCommission.findOne({ status: true })
 
         const invoicesWithCommission = invoices.map((invoice, index) => {
             const now = new Date();
