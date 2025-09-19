@@ -35,7 +35,7 @@ global.console.log = function (...args) {
 // My bro I commented the above code and added the below code for CORS issue your cors is customed so i changed it to standard one
 
 app.use(cors({
-    origin: ['https://crm.sartor.ng', 'https://crm.sartor.ng', 'http://localhost:5173/'], // replace with your frontend domain
+    origin: ['https://crm.sartor.ng', 'https://crm.sartor.ng', 'http://localhost:5173/'], 
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
