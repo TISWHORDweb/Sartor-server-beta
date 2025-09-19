@@ -23,14 +23,29 @@ global.console.log = function (...args) {
 };
 //******* logger *********//
 
-app.use(cors());
-app.use(function(req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header('Access-Control-Allow-Credentials', true);
-  res.header('Access-Control-Allow-Methods', 'DELETE, PUT, GET, POST, OPTIONS');
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-  next();
-});
+// app.use(cors());
+// app.use(function(req, res, next) {
+//   res.header("Access-Control-Allow-Origin", "*");
+//   res.header('Access-Control-Allow-Credentials', true);
+//   res.header('Access-Control-Allow-Methods', 'DELETE, PUT, GET, POST, OPTIONS');
+//   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+//   next();
+// });
+
+app.use(cors({
+    origin: ['https://crm.sartor.ng', 'https://crm.sartor.ng', 'http://localhost:5173/'], 
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// I added preflight support too
+app.options('*', cors());
+
+app.use(expressLayouts);
+app.set('view engine', 'ejs');
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/docs', express.static(path.join(__dirname, 'docs')));
 
 app.use(expressLayouts);
 app.set('view engine', 'ejs');

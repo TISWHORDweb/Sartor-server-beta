@@ -74,7 +74,7 @@ exports.sendConsultationConfirmation = (data) => {
         .body(`
             <p>Hi ${data.firstName},</p>
             
-            <p>Thanks for scheduling your consultation with <strong>Sartor Limited</strong>! We're excited to learn more about your business and help you unlock new levels of growth using strategy, systems, and smart tools.</p>
+            <p>Thanks for scheduling your consultation with <strong>Sartor Limited</strong>! </br> We're excited to learn more about your business and help you unlock new levels of growth using strategy, systems, and smart tools.</p>
             
             <div style="background: #f8f9fb; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #1a237e;">
                 <p style="margin: 5px 0;"><strong>🗓️ Your call is confirmed for:</strong></p>

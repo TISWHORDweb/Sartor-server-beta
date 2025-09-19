@@ -55,7 +55,6 @@ exports.UserRegister = useAsync(async (req, res) => {
 
 exports.UserLogin = useAsync(async (req, res) => {
     try {
-        res.header("Access-Control-Allow-Origin", "*");
 
         const { email, password, token: deviceToken } = req.body;
 

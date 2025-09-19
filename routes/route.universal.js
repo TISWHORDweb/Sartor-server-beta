@@ -118,8 +118,8 @@ router.get('/customer/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['
 //UNIVERSAL SEARCH
 router.post('/search', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), universalSearch );
 
-//BATCH
-router.post('/contact', useAsync(authMiddleware), CreateContact );
+//CONTACT
+router.post('/contact', CreateContact );
 router.put('/contact/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdateContact );
 router.delete('/contact/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteContact );
 router.get('/contacts', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllContacts );

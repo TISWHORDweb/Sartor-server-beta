@@ -447,9 +447,7 @@ exports.CreateContact = useAsync(async (req, res) => {
     try {
         const contact = await ModelContact.create(req.body);
 
-        // Send email (already have email function)
-        // await sendEmail(contact.businessEmail, "Thanks for contacting us", "We have received your message and will get back to you soon.");
-
+     
         return res.json(utils.JParser('Contact created successfully', true, contact));
     } catch (e) {
         throw new errorHandle(e.message, 500);
