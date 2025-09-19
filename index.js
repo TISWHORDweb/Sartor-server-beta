@@ -23,14 +23,26 @@ global.console.log = function (...args) {
 };
 //******* logger *********//
 
-app.use(cors());
-app.use(function(req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header('Access-Control-Allow-Credentials', true);
-  res.header('Access-Control-Allow-Methods', 'DELETE, PUT, GET, POST, OPTIONS');
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-  next();
-});
+// app.use(cors());
+// app.use(function(req, res, next) {
+//   res.header("Access-Control-Allow-Origin", "*");
+//   res.header('Access-Control-Allow-Credentials', true);
+//   res.header('Access-Control-Allow-Methods', 'DELETE, PUT, GET, POST, OPTIONS');
+//   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+//   next();
+// });
+
+// My bro I commented the above code and added the below code for CORS issue your cors is customed so i changed it to standard one
+
+app.use(cors({
+    origin: ['https://crm.sartor.ng', 'https://crm.sartor.ng', 'http://localhost:5173/'], // replace with your frontend domain
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// I added preflight support too
+app.options('*', cors());
 
 app.use(expressLayouts);
 app.set('view engine', 'ejs');
@@ -76,3 +88,81 @@ const port = process.env.PORT || 4000;
 app.listen(port, () => {
     console.log('Server is running on port ' + port);
 })
+
+
+// const express = require("express");
+// const app = express();
+// const cors = require('cors');
+// const path = require('path');
+// const bodyParser = require('body-parser');
+// const mongoose = require('mongoose');
+// const dotenv = require("dotenv");
+// dotenv.config();
+
+// const expressLayouts = require('express-ejs-layouts');
+// const AuthRoutes = require('./routes/route.auth');
+// const UniversalRoutes = require('./routes/route.universal');
+// const errorHandler = require('./middleware/middleware.error');
+// const { errorHandle } = require("./core");
+
+// // Enable CORS with proper options
+// app.use(cors({
+//     origin: '*',
+//     credentials: true,
+//     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+//     allowedHeaders: ['Content-Type', 'Authorization']
+// }));
+
+// // Preflight support
+// app.options('*', cors());
+
+// // Middleware
+// app.use(bodyParser.json());
+// app.use(expressLayouts);
+// app.set('view engine', 'ejs');
+// app.use(express.static(path.join(__dirname, 'public')));
+// app.use('/docs', express.static(path.join(__dirname, 'docs')));
+
+// // Custom console log based on environment variable
+// const originalConsoleLog = console.log;
+// global.console.log = function (...args) {
+//     if (process.env.CONSOLE_LOG === 'true') {
+//         originalConsoleLog(...args);
+//     }
+// };
+
+// // Routes
+// app.use("/api/v1/auth", AuthRoutes);
+// app.use("/api/v1", UniversalRoutes);
+
+// // 404 handler
+// app.use('*', (req, res) => {
+//     throw new errorHandle("Resource not found", 404);
+// });
+
+// // Global error handler
+// app.use((err, req, res, next) => {
+//     res.status(err.status || 500).json({
+//         success: false,
+//         message: err.message || "Internal Server Error",
+//         data: []
+//     });
+// });
+
+// // Uncaught exception handler
+// process.on('uncaughtException', function (err) {
+//     console.error(err);
+//     console.log("Node NOT exiting...");
+// });
+
+// // MongoDB Connection
+// mongoose.set("strictQuery", true);
+// mongoose.connect(process.env.MONGO_URL)
+//     .then(() => console.log("Database Connected"))
+//     .catch(err => console.log("MongoDB connection error:", err));
+
+// // Start Server
+// const PORT = process.env.PORT || 4000;
+// app.listen(PORT, () => {
+//     console.log('Server is running on port ' + PORT);
+// });
