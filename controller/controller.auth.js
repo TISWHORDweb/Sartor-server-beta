@@ -106,15 +106,13 @@ exports.UserLogin = useAsync(async (req, res) => {
 
         // attach token for response
         account.token = newToken;
-
-        if (accountType === "admin") {
-            account.role = "Super-Admin"
-        }
+        const role = accountType === "admin" ? "Super-Admin" : account.role;
 
         return res.json(
             utils.JParser("Logged in successfully", true, {
                 accountType,
-                ...account.toObject()
+                ...account.toObject(),
+                role 
             })
         );
 
