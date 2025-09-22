@@ -98,7 +98,7 @@ exports.UserLogin = useAsync(async (req, res) => {
                 }
             }
         );
-        
+
         // send login notification (optional for admins)
         if (accountType === "user") {
             EmailService.sendLoginNotification({ name: account.fullName, email: account.email });
@@ -106,6 +106,10 @@ exports.UserLogin = useAsync(async (req, res) => {
 
         // attach token for response
         account.token = newToken;
+
+        if (accountType === "admin") {
+            account.role = "Super-Admin"
+        }
 
         return res.json(
             utils.JParser("Logged in successfully", true, {

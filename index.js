@@ -39,7 +39,6 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// I added preflight support too
 app.options('*', cors());
 
 app.use(expressLayouts);
