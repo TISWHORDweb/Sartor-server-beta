@@ -39,6 +39,10 @@ const adminSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    role: {
+        type: String,
+        default: "Super-Admin"
+    },
     type: { type: Number, default: 0 },
     adminID: { type: String },
     creationDateTime: { type: Number, default: () => Date.now() },
