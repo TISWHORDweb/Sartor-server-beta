@@ -43,22 +43,22 @@ exports.authMiddleware = useAsync(async (req, res, next) => {
   }
 
   // decrypt last login timestamp
-  let lastLogin;
-  try {
-    const bytes = CryptoJS.AES.decrypt(account.lastLogin, process.env.SECRET_KEY);
-    lastLogin = new Date(JSON.parse(bytes.toString(CryptoJS.enc.Utf8)));
-  } catch (e) {
-    return res
-      .status(401)
-      .json(utils.JParser("Corrupted last login timestamp", false, []));
-  }
+  // let lastLogin;
+  // try {
+  //   const bytes = CryptoJS.AES.decrypt(account.lastLogin, process.env.SECRET_KEY);
+  //   lastLogin = new Date(JSON.parse(bytes.toString(CryptoJS.enc.Utf8)));
+  // } catch (e) {
+  //   return res
+  //     .status(401)
+  //     .json(utils.JParser("Corrupted last login timestamp", false, []));
+  // }
 
-  const expirationMs = 24 * 60 * 60 * 1000;
-  if (new Date() - lastLogin > expirationMs) {
-    return res
-      .status(401)
-      .json(utils.JParser("Invalid or expired token, Use a valid token and try again", false, []));
-  }
+  // const expirationMs = 24 * 60 * 60 * 1000;
+  // if (new Date() - lastLogin > expirationMs) {
+  //   return res
+  //     .status(401)
+  //     .json(utils.JParser("Invalid or expired token, Use a valid token and try again", false, []));
+  // }
 
   if (account.blocked) {
     return res
