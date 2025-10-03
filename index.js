@@ -36,7 +36,7 @@ app.use(cors({
     origin: ['https://crm.sartor.ng', 'https://crm.sartor.ng', 'http://localhost:5173', 'https://sartor-crm.onrender.com'], 
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 's-token']
 }));
 
 app.options('*', cors());
