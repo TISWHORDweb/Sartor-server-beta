@@ -15,6 +15,7 @@ const { useAsync, utils, errorHandle, } = require('./../core');
 const ModelUser = require('../models/model.user')
 const EmailService = require("../services");
 const ModelAdmin = require('../models/model.admin')
+const ModelPermission = require('../models/model.permission')
 
 
 
@@ -64,14 +65,18 @@ exports.UserLogin = useAsync(async (req, res) => {
 
         let account = null;
         let accountType = null;
+        let permission = null;
+
 
         // if both exist, check which password matches
         if (user && await bcrypt.compare(password, user.password)) {
             account = user;
             accountType = "user";
+            permission =  await ModelPermission.findOne({ user: user._id });
         } else if (admin && await bcrypt.compare(password, admin.password)) {
             account = admin;
             accountType = "admin";
+            permission = "All"
         } else {
             return res.status(400).json(utils.JParser("Invalid email or password", false, []));
         }
@@ -110,7 +115,8 @@ exports.UserLogin = useAsync(async (req, res) => {
         return res.json(
             utils.JParser("Logged in successfully", true, {
                 accountType,
-                ...account.toObject()
+                ...account.toObject(),
+                permission
             })
         );
 

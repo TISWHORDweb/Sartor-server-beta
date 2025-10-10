@@ -16,6 +16,7 @@ const ModelTask = require("../models/model.task");
 const EmailService = require("../services");
 const ModelContact = require("../models/model.contact");
 const ModelCommission = require("../models/moddel.commision");
+const ModelPermission = require("../models/model.permission");
 
 
 exports.editUser = useAsync(async (req, res) => {
@@ -179,7 +180,7 @@ exports.deleteUser = useAsync(async (req, res) => {
         const user = await ModelUser.findByIdAndUpdate(
             userId,
             {
-                isDeleted: false,
+                isDeleted: true,
                 updated_at: Date.now()
             },
             { new: true }
@@ -447,7 +448,7 @@ exports.CreateContact = useAsync(async (req, res) => {
     try {
         const contact = await ModelContact.create(req.body);
 
-     
+
         return res.json(utils.JParser('Contact created successfully', true, contact));
     } catch (e) {
         throw new errorHandle(e.message, 500);
@@ -530,7 +531,7 @@ exports.DeleteContact = useAsync(async (req, res) => {
         const deleted = await ModelContact.findByIdAndUpdate(
             req.params.id,
             {
-                isDeleted: false,
+                isDeleted: true,
                 updated_at: Date.now()
             },
             { new: true }
@@ -560,6 +561,88 @@ exports.GetCommision = useAsync(async (req, res) => {
         const Commission = await ModelCommission.findOne({ status: true }).lean();
         if (!Commission) throw new errorHandle("Commission not found", 404);
         return res.json(utils.JParser('Commission fetched successfully', true, { data: Commission }));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+//PERMISSION
+////////////////////////////////////////////////////////////////////////////////////////////////
+// CREATE
+exports.CreatePermission = useAsync(async (req, res) => {
+    try {
+        if (!req.body.user) throw new errorHandle("User not found", 404);
+        const permission = await ModelPermission.create(req.body);
+        return res.json(utils.JParser("Permission created successfully", true, permission));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+// GET All with Pagination
+exports.GetAllPermissions = useAsync(async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === "all" ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === "all" ? 0 : (page - 1) * limit;
+
+        const query = ModelPermission.find().populate("user").lean();
+        if (limit !== null) query.skip(skip).limit(limit);
+
+        const permissions = await query.exec();
+        const response = utils.JParser("Permissions fetched successfully", true, { data: permissions });
+
+        if (limit !== null) {
+            const totalPermissions = await ModelPermission.countDocuments();
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalPermissions / limit),
+                totalPermissions,
+                limit,
+            };
+        }
+
+        return res.json(response);
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+// GET Single
+exports.GetPermission = useAsync(async (req, res) => {
+    try {
+        const accountID = req.userId;
+        const option = req.params.id ? { _id: req.params.id } : { userId: accountID }
+        const permission = await ModelPermission.findOne(option).populate("user").lean();
+        if (!permission) throw new errorHandle("Permission not found", 404);
+        return res.json(utils.JParser("Permission fetched successfully", true, permission ));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+// UPDATE
+exports.UpdatePermission = useAsync(async (req, res) => {
+    try {
+        const updated = await ModelPermission.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        if (!updated) throw new errorHandle("Permission not found", 404);
+        return res.json(utils.JParser("Permission updated successfully", true, updated ));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+// DELETE (soft delete → mark disabled)
+exports.DeletePermission = useAsync(async (req, res) => {
+    try {
+        const deleted = await ModelPermission.findByIdAndUpdate(
+            req.params.id,
+            { deletedAt: Date.now() },
+            { new: true }
+        );
+        if (!deleted) throw new errorHandle("Permission not found", 404);
+        return res.json(utils.JParser("Permission deleted successfully", true));
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }

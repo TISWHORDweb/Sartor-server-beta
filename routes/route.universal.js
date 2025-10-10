@@ -7,7 +7,7 @@ const express = require('express');
 const router = express.Router();
 const CoreError = require('../core/core.error');
 const { getTasks, singleTask, taskComment, singleTaskComment, taskComments, changeTaskStatus, tasksByStatus } = require('../controller/controller.task');
-const { getUser, deleteUser, singleUser, editUser, allUser, createUser, GetDashboardSummary, GetUsersByRole, CreateContact, GetAllContacts, GetContact, UpdateContact, DeleteContact, UpdateCommission, GetCommision } = require('../controller/controller.user');
+const { getUser, deleteUser, singleUser, editUser, allUser, createUser, GetDashboardSummary, GetUsersByRole, CreateContact, GetAllContacts, GetContact, UpdateContact, DeleteContact, UpdateCommission, GetCommision, CreatePermission, GetAllPermissions, GetPermission, UpdatePermission, DeletePermission } = require('../controller/controller.user');
 // const { product, singleProduct, allProduct, deleteProduct, editProduct, getAdminProduct, productCategory, singleProductCategory, editProductCategory, allProductCategory, deleteProductCategory, getProductsByCategory } = require('../controller/controller.product');
 const { deleteTasks, CreateTask, editTask } = require('../controller/controller.task');
 const { useAsync } = require('../core');
@@ -129,6 +129,14 @@ router.get('/contact/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['u
 router.put('/commission/update', UpdateCommission );
 router.get('/commission', GetCommision );
 router.get('/commissions/:id', GetAllUserCommision );
+
+//PERMISSION
+router.post('/permission', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreatePermission );
+router.put('/permission/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdatePermission );
+router.delete('/permission/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeletePermission );
+router.get('/permissions', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllPermissions );
+router.get('/permissions', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllPermissions );
+router.get('/permission/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetPermission );
 
 /**
  * Export lastly

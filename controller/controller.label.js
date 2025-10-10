@@ -121,7 +121,7 @@ exports.DeleteLabel = useAsync(async (req, res) => {
         const label = await ModelLabel.findByIdAndUpdate(
             req.params.id,
             {
-                isDeleted: false,
+                isDeleted: true,
                 updated_at: Date.now()
             },
             { new: true }

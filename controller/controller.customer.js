@@ -97,7 +97,7 @@ exports.DeleteLpo = useAsync(async (req, res) => {
         const deletedLpo = await ModelLpo.findByIdAndUpdate(
             id,
             {
-                isDeleted: false,
+                isDeleted: true,
                 updated_at: Date.now()
             },
             { new: true }
@@ -468,7 +468,7 @@ exports.DeleteLead = useAsync(async (req, res) => {
         const deletedLead = await ModelLead.findByIdAndUpdate(
             id,
             {
-                isDeleted: false,
+                isDeleted: true,
                 updated_at: Date.now()
             },
             { new: true }
@@ -772,7 +772,7 @@ exports.DeleteInvoice = useAsync(async (req, res) => {
         const deletedInvoice = await ModelInvoice.findByIdAndUpdate(
             id,
             {
-                isDeleted: false,
+                isDeleted: true,
                 updated_at: Date.now()
             },
             { new: true }
@@ -912,7 +912,7 @@ exports.DeleteCustomer = useAsync(async (req, res) => {
         const customer = await ModelCustomer.findByIdAndUpdate(
             req.params.id,
             {
-                isDeleted: false,
+                isDeleted: true,
                 updated_at: Date.now()
             },
             { new: true }

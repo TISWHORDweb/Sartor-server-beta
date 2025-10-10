@@ -97,7 +97,7 @@ exports.DeleteProduct = useAsync(async (req, res) => {
         const deletedProduct = await ModelProduct.findByIdAndUpdate(
             id,
             {
-                isDeleted: false,
+                isDeleted: true,
                 updated_at: Date.now()
             },
             { new: true }
@@ -374,7 +374,7 @@ exports.DeleteRestock = useAsync(async (req, res) => {
         const deletedRestock = await ModelRestock.findByIdAndUpdate(
             id,
             {
-                isDeleted: false,
+                isDeleted: true,
                 updated_at: Date.now()
             },
             { new: true }
@@ -534,7 +534,7 @@ exports.DeleteSupplier = useAsync(async (req, res) => {
         const deletedSupplier = await ModelSupplier.findByIdAndUpdate(
             id,
             {
-                isDeleted: false,
+                isDeleted: true,
                 updated_at: Date.now()
             },
             { new: true }
@@ -873,7 +873,7 @@ exports.DeleteBatch = useAsync(async (req, res) => {
         const batch = await ModelBatch.findByIdAndUpdate(
             req.params.id,
             {
-                isDeleted: false,
+                isDeleted: true,
                 updated_at: Date.now()
             },
             { new: true }

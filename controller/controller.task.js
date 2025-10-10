@@ -215,7 +215,7 @@ exports.deleteTasks = useAsync(async (req, res) => {
         const tasks = await ModelTask.findByIdAndUpdate(
             taskID,
             {
-                isDeleted: false,
+                isDeleted: true,
                 updated_at: Date.now()
             },
             { new: true }

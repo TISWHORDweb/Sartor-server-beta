@@ -33,7 +33,7 @@ global.console.log = function (...args) {
 // });
 
 app.use(cors({
-    origin: ['https://crm.sartor.ng', 'https://crm.sartor.ng', 'http://localhost:5173', 'https://sartor-crm.onrender.com'], 
+    origin: ['https://crm.sartor.ng', 'https://crm.sartor.ng', 'http://localhost:5173', 'http://localhost:5174', 'https://sartor-crm.onrender.com'], 
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 's-token']
@@ -50,6 +50,7 @@ app.use(expressLayouts);
 app.set('view engine', 'ejs');
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/docs', express.static(path.join(__dirname, 'docs')));
+
 
 
 app.use(bodyParser.json())
