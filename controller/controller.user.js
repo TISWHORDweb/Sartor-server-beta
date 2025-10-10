@@ -30,7 +30,9 @@ exports.editUser = useAsync(async (req, res) => {
 
         await ModelUser.updateOne({ _id: userId }, body).then(async () => {
             const user = await ModelUser.find({ _id: userId });
-            return res.json(utils.JParser('User Update Successfully', !!user, user));
+            user.password = "****************************"
+
+            return res.json(utils.JParser('User Update Successfully', !!user, []));
         })
 
     } catch (e) {
@@ -441,7 +443,7 @@ exports.GetDashboardSummary = useAsync(async (req, res) => {
 
 exports.UpdatePasswordChanged = useAsync(async (req, res) => {
     try {
-        const updated = await ModelUser.updateOne({ _id: req.body.id }, { passwordChanged: true}, { new: true });
+        const updated = await ModelUser.updateOne({ _id: req.body.id }, { passwordChanged: true }, { new: true });
         if (!updated) throw new errorHandle("User not found", 404);
         return res.json(utils.JParser('updated successfully', true, []));
     } catch (e) {
@@ -624,7 +626,7 @@ exports.GetPermission = useAsync(async (req, res) => {
         const option = req.params.id ? { _id: req.params.id } : { userId: accountID }
         const permission = await ModelPermission.findOne(option).populate("user").lean();
         if (!permission) throw new errorHandle("Permission not found", 404);
-        return res.json(utils.JParser("Permission fetched successfully", true, permission ));
+        return res.json(utils.JParser("Permission fetched successfully", true, permission));
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }
@@ -635,7 +637,7 @@ exports.UpdatePermission = useAsync(async (req, res) => {
     try {
         const updated = await ModelPermission.findByIdAndUpdate(req.params.id, req.body, { new: true });
         if (!updated) throw new errorHandle("Permission not found", 404);
-        return res.json(utils.JParser("Permission updated successfully", true, updated ));
+        return res.json(utils.JParser("Permission updated successfully", true, updated));
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }

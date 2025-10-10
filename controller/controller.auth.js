@@ -105,11 +105,6 @@ exports.UserLogin = useAsync(async (req, res) => {
             }
         );
 
-        // await ModelUser.updateMany(
-        //     { passwordChanged: { $exists: false } },
-        //     { $set: { passwordChanged: false } }
-        // );
-
         // send login notification (optional for admins)
         if (accountType === "user") {
             EmailService.sendLoginNotification({ name: account.fullName, email: account.email });
@@ -117,6 +112,7 @@ exports.UserLogin = useAsync(async (req, res) => {
 
         // attach token for response
         account.token = newToken;
+        account.password = "****************************"
 
         return res.json(
             utils.JParser("Logged in successfully", true, {
@@ -130,7 +126,6 @@ exports.UserLogin = useAsync(async (req, res) => {
         throw new errorHandle(e.message, 400);
     }
 });
-
 
 exports.EmployeeRegister = useAsync(async (req, res) => {
 
@@ -217,48 +212,54 @@ exports.EmployeeLogin = useAsync(async (req, res) => {
 })
 
 exports.PasswordUpdate = useAsync(async (req, res, next) => {
-  const accountID = req.userId;
-  const accountType = req.userType;
+    const accountID = req.userId;
+    const accountType = req.userType;
 
-  try {
-    // Validate input
-    const schema = Joi.object({
-      passwordOld: Joi.string().min(5).required(),
-      password1: Joi.string().min(5).required(),
-      password2: Joi.string().min(5).required(),
-    });
-    const data = await schema.validateAsync(req.body);
+    try {
+        // Validate input
+        const schema = Joi.object({
+            passwordOld: Joi.string().min(5).required(),
+            password1: Joi.string().min(5).required(),
+            password2: Joi.string().min(5).required(),
+        });
+        const data = await schema.validateAsync(req.body);
 
-    if (data.password1 !== data.password2) {
-      return res.json(utils.JParser("Password mis-matched", false, null));
+        if (data.password1 !== data.password2) {
+            return res.json(utils.JParser("Password mis-matched", false, null));
+        }
+
+        let accountModel =
+            accountType === "user" ? ModelUser : accountType === "admin" ? ModelAdmin : null;
+
+        if (!accountModel) {
+            return res.json(utils.JParser("Invalid account type", false, null));
+        }
+
+        const account = await accountModel.findById(accountID);
+        if (!account) {
+            return res.json(utils.JParser("Account not found", false, null));
+        }
+
+        const isMatch = await bcrypt.compare(data.passwordOld, account.password);
+        if (!isMatch) {
+            return res.json(utils.JParser("Invalid old password", false, null));
+        }
+
+        if (accountType === "user") {
+            if (account.passwordChanged === false) {
+                account.passwordChanged = true
+            }
+        }
+
+        const hashedPassword = await bcrypt.hash(data.password1, 10);
+
+        account.password = hashedPassword;
+        await account.save();
+
+        return res.json(utils.JParser("Password updated successfully", true, null));
+    } catch (e) {
+        throw new errorHandle(e.message, 400);
     }
-
-    let accountModel =
-      accountType === "user" ? ModelUser : accountType === "admin" ? ModelAdmin : null;
-
-    if (!accountModel) {
-      return res.json(utils.JParser("Invalid account type", false, null));
-    }
-    
-    const account = await accountModel.findById(accountID);
-    if (!account) {
-      return res.json(utils.JParser("Account not found", false, null));
-    }
-
-    const isMatch = await bcrypt.compare(data.passwordOld, account.password);
-    if (!isMatch) {
-      return res.json(utils.JParser("Invalid old password", false, null));
-    }
-
-    const hashedPassword = await bcrypt.hash(data.password1, 10);
-
-    account.password = hashedPassword;
-    await account.save();
-
-    return res.json(utils.JParser("Password updated successfully", true, null));
-  } catch (e) {
-    throw new errorHandle(e.message, 400);
-  }
 });
 
 // exports.userEmailVerify = useAsync(async (req, res) => {

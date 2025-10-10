@@ -26,7 +26,7 @@ const { PasswordUpdate } = require('../controller/controller.auth');
 //USER
 router.post('/user/create', useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), createUser );
 router.get('/user/details', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), getUser);
-router.put('/user/edit',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), editUser  );
+router.put('/user/edit',useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), editUser  );
 router.get('/users',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), allUser  );
 router.delete('/user/delete',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), deleteUser  );
 router.put('/user/password', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdatePasswordChanged  );
