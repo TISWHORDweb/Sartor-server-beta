@@ -439,13 +439,16 @@ exports.UpdateLead = useAsync(async (req, res) => {
         const { id } = req.params;
         const schema = Joi.object({
             name: Joi.string().min(3).optional(),
+            email: Joi.string().min(3).optional(),
             address: Joi.string().min(3).optional(),
+            image: Joi.string().optional(),
             phone: Joi.string().min(3).optional(),
             state: Joi.string().min(3).optional(),
+            lga: Joi.string().min(3).optional(),
             type: Joi.string().min(3).optional(),
             stores: Joi.number().optional(),
             dealSize: Joi.string().optional(),
-            notes: Joi.string().min(3).optional(),
+            note: Joi.string().min(3).optional(),
             contact: Joi.array().optional(),
         });
 
