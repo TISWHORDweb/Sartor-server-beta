@@ -19,26 +19,79 @@ const ModelCommission = require("../models/moddel.commision");
 const ModelPermission = require("../models/model.permission");
 
 
+
 exports.editUser = useAsync(async (req, res) => {
+  try {
+    const userId = req.body.id;
 
-    try {
-
-        const userId = req.body.id
-        const body = req.body
-
-        if (!userId) return res.status(402).json(utils.JParser('provide the user id', false, []));
-
-        await ModelUser.updateOne({ _id: userId }, body).then(async () => {
-            const user = await ModelUser.find({ _id: userId });
-            user.password = "****************************"
-
-            return res.json(utils.JParser('User Update Successfully', !!user, []));
-        })
-
-    } catch (e) {
-        throw new errorHandle(e.message, 400)
+    if (!userId) {
+      return res
+        .status(400)
+        .json(utils.JParser("Provide the user id", false, []));
     }
-})
+
+    // Joi validation schema
+    const schema = Joi.object({
+      id: Joi.string().required(),
+      fullName: Joi.string().optional(),
+      address: Joi.string().optional(),
+      email: Joi.string().email().optional(),
+      phone: Joi.string().optional(),
+      image: Joi.string().optional(),
+      isverified: Joi.boolean().optional(),
+      userManagement: Joi.boolean().optional(),
+      paymentConfirmation: Joi.boolean().optional(),
+      sales: Joi.boolean().optional(),
+      lpoReconciliation: Joi.boolean().optional(),
+      clg: Joi.boolean().optional(),
+      workflow: Joi.boolean().optional(),
+      lpoWorkflow: Joi.boolean().optional(),
+      delivery: Joi.boolean().optional(),
+      performanceMonitoring: Joi.boolean().optional(),
+      promotionalManagement: Joi.boolean().optional(),
+      paymentHandling: Joi.boolean().optional(),
+      fieldActivity: Joi.boolean().optional(),
+      visit: Joi.boolean().optional(),
+      lpoManagement: Joi.boolean().optional(),
+      marketingResources: Joi.boolean().optional(),
+      followUp: Joi.boolean().optional(),
+      paymentVisibility: Joi.boolean().optional(),
+      role: Joi.string()
+        .valid(
+          "Manager",
+          "Admin",
+          "Sales Rep",
+          "Inventory Manager",
+          "Merchandiser",
+          "Driver"
+        )
+        .optional(),
+    });
+
+    const validatedData = await schema.validateAsync(req.body);
+
+    const { id, ...updateData } = validatedData;
+
+    updateData.updated_at = Date.now();
+
+    const updated = await ModelUser.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!updated) {
+      return res.json(utils.JParser("User not found", false, []));
+    }
+
+    updated.password = "****************************";
+
+    return res.json(
+      utils.JParser("User updated successfully", true, updated)
+    );
+  } catch (e) {
+    throw new errorHandle(e.message, 400);
+  }
+});
 
 exports.getUser = useAsync(async (req, res) => {
 
