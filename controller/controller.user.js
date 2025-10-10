@@ -439,7 +439,15 @@ exports.GetDashboardSummary = useAsync(async (req, res) => {
     }
 });
 
-
+exports.UpdatePasswordChanged = useAsync(async (req, res) => {
+    try {
+        const updated = await ModelUser.updateOne({ _id: req.body.id }, { passwordChanged: true}, { new: true });
+        if (!updated) throw new errorHandle("User not found", 404);
+        return res.json(utils.JParser('updated successfully', true, []));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

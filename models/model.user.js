@@ -109,10 +109,14 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ["Manager", "Admin", "Sales Rep", "Inventory Manager", "Merchandiser"],
+        enum: ["Manager", "Admin", "Sales Rep", "Inventory Manager", "Merchandiser", "Driver"],
         default: "Manager"
     },
     isDeleted: {
+        type: Boolean,
+        default: false
+    },
+    passwordChanged: {
         type: Boolean,
         default: false
     },

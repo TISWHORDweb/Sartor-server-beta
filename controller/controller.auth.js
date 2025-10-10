@@ -16,6 +16,7 @@ const ModelUser = require('../models/model.user')
 const EmailService = require("../services");
 const ModelAdmin = require('../models/model.admin')
 const ModelPermission = require('../models/model.permission')
+const Joi = require('joi')
 
 
 
@@ -72,7 +73,7 @@ exports.UserLogin = useAsync(async (req, res) => {
         if (user && await bcrypt.compare(password, user.password)) {
             account = user;
             accountType = "user";
-            permission =  await ModelPermission.findOne({ user: user._id });
+            permission = await ModelPermission.findOne({ user: user._id });
         } else if (admin && await bcrypt.compare(password, admin.password)) {
             account = admin;
             accountType = "admin";
@@ -103,6 +104,11 @@ exports.UserLogin = useAsync(async (req, res) => {
                 }
             }
         );
+
+        // await ModelUser.updateMany(
+        //     { passwordChanged: { $exists: false } },
+        //     { $set: { passwordChanged: false } }
+        // );
 
         // send login notification (optional for admins)
         if (accountType === "user") {
@@ -210,6 +216,50 @@ exports.EmployeeLogin = useAsync(async (req, res) => {
     }
 })
 
+exports.PasswordUpdate = useAsync(async (req, res, next) => {
+  const accountID = req.userId;
+  const accountType = req.userType;
+
+  try {
+    // Validate input
+    const schema = Joi.object({
+      passwordOld: Joi.string().min(5).required(),
+      password1: Joi.string().min(5).required(),
+      password2: Joi.string().min(5).required(),
+    });
+    const data = await schema.validateAsync(req.body);
+
+    if (data.password1 !== data.password2) {
+      return res.json(utils.JParser("Password mis-matched", false, null));
+    }
+
+    let accountModel =
+      accountType === "user" ? ModelUser : accountType === "admin" ? ModelAdmin : null;
+
+    if (!accountModel) {
+      return res.json(utils.JParser("Invalid account type", false, null));
+    }
+    
+    const account = await accountModel.findById(accountID);
+    if (!account) {
+      return res.json(utils.JParser("Account not found", false, null));
+    }
+
+    const isMatch = await bcrypt.compare(data.passwordOld, account.password);
+    if (!isMatch) {
+      return res.json(utils.JParser("Invalid old password", false, null));
+    }
+
+    const hashedPassword = await bcrypt.hash(data.password1, 10);
+
+    account.password = hashedPassword;
+    await account.save();
+
+    return res.json(utils.JParser("Password updated successfully", true, null));
+  } catch (e) {
+    throw new errorHandle(e.message, 400);
+  }
+});
 
 // exports.userEmailVerify = useAsync(async (req, res) => {
 //     try {

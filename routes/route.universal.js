@@ -7,7 +7,7 @@ const express = require('express');
 const router = express.Router();
 const CoreError = require('../core/core.error');
 const { getTasks, singleTask, taskComment, singleTaskComment, taskComments, changeTaskStatus, tasksByStatus } = require('../controller/controller.task');
-const { getUser, deleteUser, singleUser, editUser, allUser, createUser, GetDashboardSummary, GetUsersByRole, CreateContact, GetAllContacts, GetContact, UpdateContact, DeleteContact, UpdateCommission, GetCommision, CreatePermission, GetAllPermissions, GetPermission, UpdatePermission, DeletePermission } = require('../controller/controller.user');
+const { getUser, deleteUser, singleUser, editUser, allUser, createUser, GetDashboardSummary, GetUsersByRole, CreateContact, GetAllContacts, GetContact, UpdateContact, DeleteContact, UpdateCommission, GetCommision, CreatePermission, GetAllPermissions, GetPermission, UpdatePermission, DeletePermission, UpdatePasswordChanged } = require('../controller/controller.user');
 // const { product, singleProduct, allProduct, deleteProduct, editProduct, getAdminProduct, productCategory, singleProductCategory, editProductCategory, allProductCategory, deleteProductCategory, getProductsByCategory } = require('../controller/controller.product');
 const { deleteTasks, CreateTask, editTask } = require('../controller/controller.task');
 const { useAsync } = require('../core');
@@ -16,6 +16,7 @@ const { CreateSupplier, UpdateSupplier, DeleteSupplier, GetAllSuppliers, GetSing
 const { uploadLabel, labelTrainWebhook, CreateLabel, GetAllLabels, GetLabel, UpdateLabel, DeleteLabel, verifyLabel } = require('../controller/controller.label');
 const { upload } = require('../core/core.utils');
 const { universalSearch } = require('../controller/controller.search');
+const { PasswordUpdate } = require('../controller/controller.auth');
 
 
 /**
@@ -28,9 +29,11 @@ router.get('/user/details', useAsync(authMiddleware), useAsync(roleMiddleware(['
 router.put('/user/edit',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), editUser  );
 router.get('/users',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), allUser  );
 router.delete('/user/delete',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), deleteUser  );
+router.put('/user/password', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdatePasswordChanged  );
 router.get('/user/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), singleUser  );
 router.get('/user/role/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), GetUsersByRole  );
 router.get('/dashboard', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetDashboardSummary  );
+router.put('/user/password-change', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), PasswordUpdate );
 
 ////TASKS
 router.post('/task/create', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateTask );
