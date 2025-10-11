@@ -256,7 +256,9 @@ exports.PasswordUpdate = useAsync(async (req, res, next) => {
         account.password = hashedPassword;
         await account.save();
 
-        return res.json(utils.JParser("Password updated successfully", true, null));
+        account.password = "***********************************"
+
+        return res.json(utils.JParser("Password updated successfully", true, account));
     } catch (e) {
         throw new errorHandle(e.message, 400);
     }

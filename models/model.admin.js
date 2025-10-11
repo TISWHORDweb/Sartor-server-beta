@@ -39,6 +39,10 @@ const adminSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    passwordChanged: {
+        type: Boolean,
+        default: true
+    },
     role: {
         type: String,
         default: "Super-Admin"
