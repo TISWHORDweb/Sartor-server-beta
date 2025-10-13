@@ -129,6 +129,10 @@ const userSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'model-admin'
     },
+    assignedTo: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-user'
+    },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }
 })

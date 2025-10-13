@@ -18,80 +18,82 @@ const ModelContact = require("../models/model.contact");
 const ModelCommission = require("../models/moddel.commision");
 const ModelPermission = require("../models/model.permission");
 const Joi = require("joi");
+const ModelNotification = require("../models/model.notification");
+const ModelAssignment = require("../models/model.assignment");
 
 
 
 exports.editUser = useAsync(async (req, res) => {
-  try {
-    const userId = req.body.id;
+    try {
+        const userId = req.body.id;
 
-    if (!userId) {
-      return res
-        .status(400)
-        .json(utils.JParser("Provide the user id", false, []));
+        if (!userId) {
+            return res
+                .status(400)
+                .json(utils.JParser("Provide the user id", false, []));
+        }
+
+        // Joi validation schema
+        const schema = Joi.object({
+            id: Joi.string().required(),
+            fullName: Joi.string().optional(),
+            address: Joi.string().optional(),
+            email: Joi.string().email().optional(),
+            phone: Joi.string().optional(),
+            image: Joi.string().optional(),
+            isverified: Joi.boolean().optional(),
+            userManagement: Joi.boolean().optional(),
+            paymentConfirmation: Joi.boolean().optional(),
+            sales: Joi.boolean().optional(),
+            lpoReconciliation: Joi.boolean().optional(),
+            clg: Joi.boolean().optional(),
+            workflow: Joi.boolean().optional(),
+            lpoWorkflow: Joi.boolean().optional(),
+            delivery: Joi.boolean().optional(),
+            performanceMonitoring: Joi.boolean().optional(),
+            promotionalManagement: Joi.boolean().optional(),
+            paymentHandling: Joi.boolean().optional(),
+            fieldActivity: Joi.boolean().optional(),
+            visit: Joi.boolean().optional(),
+            lpoManagement: Joi.boolean().optional(),
+            marketingResources: Joi.boolean().optional(),
+            followUp: Joi.boolean().optional(),
+            paymentVisibility: Joi.boolean().optional(),
+            role: Joi.string()
+                .valid(
+                    "Manager",
+                    "Admin",
+                    "Sales Rep",
+                    "Inventory Manager",
+                    "Merchandiser",
+                    "Driver"
+                )
+                .optional(),
+        });
+
+        const validatedData = await schema.validateAsync(req.body);
+
+        const { id, ...updateData } = validatedData;
+
+        updateData.updated_at = Date.now();
+
+        const updated = await ModelUser.findByIdAndUpdate(id, updateData, {
+            new: true,
+            runValidators: true,
+        });
+
+        if (!updated) {
+            return res.json(utils.JParser("User not found", false, []));
+        }
+
+        updated.password = "****************************";
+
+        return res.json(
+            utils.JParser("User updated successfully", true, updated)
+        );
+    } catch (e) {
+        throw new errorHandle(e.message, 400);
     }
-
-    // Joi validation schema
-    const schema = Joi.object({
-      id: Joi.string().required(),
-      fullName: Joi.string().optional(),
-      address: Joi.string().optional(),
-      email: Joi.string().email().optional(),
-      phone: Joi.string().optional(),
-      image: Joi.string().optional(),
-      isverified: Joi.boolean().optional(),
-      userManagement: Joi.boolean().optional(),
-      paymentConfirmation: Joi.boolean().optional(),
-      sales: Joi.boolean().optional(),
-      lpoReconciliation: Joi.boolean().optional(),
-      clg: Joi.boolean().optional(),
-      workflow: Joi.boolean().optional(),
-      lpoWorkflow: Joi.boolean().optional(),
-      delivery: Joi.boolean().optional(),
-      performanceMonitoring: Joi.boolean().optional(),
-      promotionalManagement: Joi.boolean().optional(),
-      paymentHandling: Joi.boolean().optional(),
-      fieldActivity: Joi.boolean().optional(),
-      visit: Joi.boolean().optional(),
-      lpoManagement: Joi.boolean().optional(),
-      marketingResources: Joi.boolean().optional(),
-      followUp: Joi.boolean().optional(),
-      paymentVisibility: Joi.boolean().optional(),
-      role: Joi.string()
-        .valid(
-          "Manager",
-          "Admin",
-          "Sales Rep",
-          "Inventory Manager",
-          "Merchandiser",
-          "Driver"
-        )
-        .optional(),
-    });
-
-    const validatedData = await schema.validateAsync(req.body);
-
-    const { id, ...updateData } = validatedData;
-
-    updateData.updated_at = Date.now();
-
-    const updated = await ModelUser.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    });
-
-    if (!updated) {
-      return res.json(utils.JParser("User not found", false, []));
-    }
-
-    updated.password = "****************************";
-
-    return res.json(
-      utils.JParser("User updated successfully", true, updated)
-    );
-  } catch (e) {
-    throw new errorHandle(e.message, 400);
-  }
 });
 
 exports.getUser = useAsync(async (req, res) => {
@@ -128,7 +130,7 @@ exports.allUser = useAsync(async (req, res) => {
         const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
 
         let filter = {};
-        if (accountType === "user") {
+        if (accountType === "users") {
             filter = { admin: null };
         } else if (accountType === "admin") {
             filter = { admin: accountID };
@@ -193,6 +195,8 @@ exports.GetUsersByRole = useAsync(async (req, res) => {
         let filter = {};
         if (accountType === "admin") {
             filter = { admin: accountID, role };
+        } else {
+            return res.status(400).json(utils.JParser('Invalid user', false, []));
         }
 
         const page = parseInt(req.query.page) || 1;
@@ -708,6 +712,291 @@ exports.DeletePermission = useAsync(async (req, res) => {
         if (!deleted) throw new errorHandle("Permission not found", 404);
         return res.json(utils.JParser("Permission deleted successfully", true));
     } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+//PERMISSION
+////////////////////////////////////////////////////////////////////////////////////////////////
+exports.CreateNotification = useAsync(async (req, res) => {
+    try {
+        if (!req.body.user) throw new errorHandle("User not found", 404);
+        const notification = await ModelNotification.create(req.body);
+        return res.json(utils.JParser("Notification sent successfully", true, notification));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+// GET All Notifications with Pagination
+exports.GetAllNotifications = useAsync(async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === "all" ? null : parseInt(req.query.limit) || 3;
+        const skip = req.query.limit === "all" ? 0 : (page - 1) * limit;
+
+        // Optional: Filter by user
+        const filter = {};
+        // if (req.query.user) {
+        //     filter.user = req.query.user;
+        // }
+
+        // Optional: Filter by status
+        if (req.query.status !== undefined) {
+            filter.status = req.query.status === 'true';
+        }
+
+        // Optional: Filter by type
+        if (req.query.type !== undefined) {
+            filter.type = parseInt(req.query.type);
+        }
+
+        const query = ModelNotification.find(filter).lean();
+        if (limit !== null) query.skip(skip).limit(limit);
+
+        // Sort by creation date (newest first)
+        query.sort({ creationDateTime: -1 });
+
+        const notifications = await query.exec();
+        const response = utils.JParser("Notifications fetched successfully", true, { data: notifications });
+
+        if (limit !== null) {
+            const totalNotifications = await ModelNotification.countDocuments(filter);
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalNotifications / limit),
+                totalNotifications,
+                limit,
+            };
+        }
+
+        return res.json(response);
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+// GET Single Notification
+exports.GetNotification = useAsync(async (req, res) => {
+    try {
+        const notification = await ModelNotification.findOne({ _id: req.params.id }).lean();
+        if (!notification) throw new errorHandle("Notification not found", 404);
+        return res.json(utils.JParser("Notification fetched successfully", true, notification));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+// GET Notifications by User
+exports.GetUserNotifications = useAsync(async (req, res) => {
+    try {
+        const userId = req.userId
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 3;
+        const skip = (page - 1) * limit;
+
+        const query = ModelNotification.find({ user: userId }).lean();
+        query.skip(skip).limit(limit).sort({ creationDateTime: -1 });
+
+        const notifications = await query.exec();
+        const totalNotifications = await ModelNotification.countDocuments({ user: userId });
+
+        const response = utils.JParser("User notifications fetched successfully", true, {
+            data: notifications,
+            pagination: {
+                currentPage: page,
+                totalPages: Math.ceil(totalNotifications / limit),
+                totalNotifications,
+                limit,
+            }
+        });
+
+        return res.json(response);
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+// UPDATE Notification
+exports.UpdateNotification = useAsync(async (req, res) => {
+    try {
+        const updateData = { ...req.body, updated_at: Date.now() };
+        const updated = await ModelNotification.findByIdAndUpdate(
+            req.params.id,
+            updateData,
+            { new: true }
+        );
+        if (!updated) throw new errorHandle("Notification not found", 404);
+        return res.json(utils.JParser("Notification updated successfully", true, updated));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+exports.MarkAsRead = useAsync(async (req, res) => {
+    try {
+        const updated = await ModelNotification.findByIdAndUpdate(
+            req.params.id,
+            {
+                status: true,
+                readDateTime: Date.now(),
+                updated_at: Date.now()
+            },
+            { new: true }
+        );
+        if (!updated) throw new errorHandle("Notification not found", 404);
+        return res.json(utils.JParser("Notification marked as read", true, updated));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+// MARK ALL AS READ FOR USER - Update multiple notifications
+exports.MarkAllAsRead = useAsync(async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const result = await ModelNotification.updateMany(
+            { user: userId, status: false },
+            {
+                status: true,
+                readDateTime: Date.now(),
+                updated_at: Date.now()
+            }
+        );
+        return res.json(utils.JParser("All notifications marked as read", true, {
+            modifiedCount: result.modifiedCount
+        }));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+// DELETE Notification (soft delete)
+exports.DeleteNotification = useAsync(async (req, res) => {
+    try {
+        const deleted = await ModelNotification.findByIdAndUpdate(
+            req.params.id,
+            {
+                isDeleted: true,
+                deletedAt: Date.now(),
+                updated_at: Date.now()
+            },
+            { new: true }
+        );
+        if (!deleted) throw new errorHandle("Notification not found", 404);
+        return res.json(utils.JParser("Notification deleted successfully", true));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+//ASSIGNMENT
+////////////////////////////////////////////////////////////////////////////////////////////////
+exports.assignUserToUser = useAsync(async (req, res) => {
+    try {
+        const { assignedUser, assignedtoUser } = req.body;
+
+        const user1 = await ModelUser.findById(assignedUser);
+        const user2 = await ModelUser.findById(assignedtoUser);
+
+        if (!user1 || !user2) {
+            throw new errorHandle("One or both users not found", 404);
+        }
+
+        if (user1.admin && user2.admin) {
+            if (!user1.admin.equals(user2.admin)) {
+                throw new errorHandle("Sorry you can't assign this users", 400);
+            }
+        } else {
+            throw new errorHandle("Admin information missing for one or both users", 400);
+        }
+
+        const assignment = await ModelAssignment.findOne({
+            assignedUser,
+            assignedtoUser
+        });
+
+        if (assignment) {
+            throw new errorHandle("Users are already assigned together", 400);
+        }
+
+        await ModelAssignment.create(req.body);
+        return res.json(utils.JParser(`${user1.fullName} is assigned to ${user2.fullName} successfully`, true, []));
+
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+// GET Users by assignment type (assigned/unassigned/assigned-by-me)
+exports.GetUsersByAssignmentType = useAsync(async (req, res) => {
+    try {
+        const userId = req.userId;
+        const type = req.query.type || 'assigned';
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+        const role = req.query.role;
+        const adminId = req.adminID;
+
+        let userFilter = { isDeleted: { $ne: true } };
+        let userIds = [];
+
+        switch (type) {
+            case 'assigned':
+                // Users assigned TO this user
+                const assignmentsTo = await ModelAssignment.find({ assignedtoUser: userId });
+                userIds = assignmentsTo.map(assignment => assignment.assignedUser);
+                userFilter._id = { $in: userIds };
+                break;
+
+            case 'unassigned':
+                // Users NOT assigned to this user
+                const assignments = await ModelAssignment.find({ assignedtoUser: userId });
+                const assignedIds = assignments.map(assignment => assignment.assignedUser);
+                userFilter._id = { $nin: [...assignedIds, userId] };
+                break;
+
+            // case 'assigned-by-me':
+            //     // Users this user has assigned TO others
+            //     const assignmentsBy = await ModelAssignment.find({ assignedUser: userId });
+            //     userIds = assignmentsBy.map(assignment => assignment.assignedtoUser);
+            //     userFilter._id = { $in: userIds };
+            //     break;
+
+            default:
+                throw new errorHandle("Invalid type parameter. Use 'assigned', 'unassigned', or 'assigned-by-me'", 400);
+        }
+
+        if (role) {
+            userFilter.role = role;
+        }
+
+        if (adminId) {
+            userFilter.admin = adminId;
+        }
+
+        const query = ModelUser.find(userFilter).lean();
+        query.skip(skip).limit(limit).sort({ fullName: 1 });
+
+        const users = await query.exec();
+        const totalUsers = await ModelUser.countDocuments(userFilter);
+
+        const response = utils.JParser(`Users fetched successfully (${type})`, true, {
+            data: users,
+            pagination: {
+                currentPage: page,
+                totalPages: Math.ceil(totalUsers / limit),
+                totalUsers,
+                limit,
+            }
+        });
+
+        return res.json(response);
+    } catch (e) {
+        console.log(e)
         throw new errorHandle(e.message, 500);
     }
 });

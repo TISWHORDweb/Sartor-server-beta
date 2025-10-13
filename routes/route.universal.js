@@ -7,7 +7,7 @@ const express = require('express');
 const router = express.Router();
 const CoreError = require('../core/core.error');
 const { getTasks, singleTask, taskComment, singleTaskComment, taskComments, changeTaskStatus, tasksByStatus } = require('../controller/controller.task');
-const { getUser, deleteUser, singleUser, editUser, allUser, createUser, GetDashboardSummary, GetUsersByRole, CreateContact, GetAllContacts, GetContact, UpdateContact, DeleteContact, UpdateCommission, GetCommision, CreatePermission, GetAllPermissions, GetPermission, UpdatePermission, DeletePermission, UpdatePasswordChanged } = require('../controller/controller.user');
+const { getUser, deleteUser, singleUser, editUser, allUser, createUser, GetDashboardSummary, GetUsersByRole, CreateContact, GetAllContacts, GetContact, UpdateContact, DeleteContact, UpdateCommission, GetCommision, CreatePermission, GetAllPermissions, GetPermission, UpdatePermission, DeletePermission, UpdatePasswordChanged, CreateNotification, GetAllNotifications, GetNotification, GetUserNotifications, UpdateNotification, DeleteNotification, MarkAllAsRead, MarkAsRead, assignUserToUser, GetAssignedUsers, GetUsersByAssignmentType } = require('../controller/controller.user');
 // const { product, singleProduct, allProduct, deleteProduct, editProduct, getAdminProduct, productCategory, singleProductCategory, editProductCategory, allProductCategory, deleteProductCategory, getProductsByCategory } = require('../controller/controller.product');
 const { deleteTasks, CreateTask, editTask } = require('../controller/controller.task');
 const { useAsync } = require('../core');
@@ -27,7 +27,7 @@ const { PasswordUpdate } = require('../controller/controller.auth');
 router.post('/user/create', useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), createUser );
 router.get('/user/details', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), getUser);
 router.put('/user/edit',useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), editUser  );
-router.get('/users',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), allUser  );
+router.get('/users',useAsync(authMiddleware),  allUser  );
 router.delete('/user/delete',useAsync(authMiddleware), useAsync(roleMiddleware(['admin'])), deleteUser  );
 router.put('/user/password', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdatePasswordChanged  );
 router.get('/user/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), singleUser  );
@@ -138,8 +138,23 @@ router.post('/permission', useAsync(authMiddleware), useAsync(roleMiddleware(['u
 router.put('/permission/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdatePermission );
 router.delete('/permission/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeletePermission );
 router.get('/permissions', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllPermissions );
-router.get('/permissions', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllPermissions );
 router.get('/permission/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetPermission );
+
+//NOTIFICATION
+router.post('/notification', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateNotification );
+router.put('/notification/read/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), MarkAsRead );
+router.put('/notification/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdateNotification );
+router.delete('/notification/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteNotification );
+router.get('/notifications', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetUserNotifications );
+router.get('/notification/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetNotification );
+
+//ASSIGNMENT
+router.post('/assignment', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), assignUserToUser );
+// router.put('/notification/read/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), MarkAsRead );
+// router.put('/notification/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdateNotification );
+// router.delete('/notification/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteNotification );
+router.get('/assignment', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetUsersByAssignmentType );
+// router.get('/notification/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetNotification );
 
 /**
  * Export lastly
