@@ -879,7 +879,6 @@ exports.DeleteNotification = useAsync(async (req, res) => {
             req.params.id,
             {
                 isDeleted: true,
-                deletedAt: Date.now(),
                 updated_at: Date.now()
             },
             { new: true }

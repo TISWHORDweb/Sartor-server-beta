@@ -4,6 +4,7 @@ const ModelInvoice = require("../models/model.invoice");
 const ModelProduct = require("../models/model.Label");
 const ModelLead = require("../models/model.lead");
 const ModelLpo = require("../models/model.lpo");
+const ModelNotification = require("../models/model.notification");
 const ModelUser = require("../models/model.user");
 const multer = require('multer');
 const path = require('path');
@@ -137,3 +138,60 @@ exports.upload = multer({
         fileSize: 5 * 1024 * 1024
     }
 });
+
+
+exports.generateNotification = async (notificationData) => {
+    try {
+        const {
+            userId,
+            message,
+            type = 0,
+        } = notificationData;
+
+        // Validate required fields
+        if (!message) {
+            throw new Error('Notificaton error occured');
+        }
+
+        if (userId) {
+
+            const notification = await ModelNotification.create({
+                notification: message,
+                user: userId,
+                type: type
+            });
+
+            console.log(`Notification sent to user ${userId}: ${message}`);
+            return notification;
+        }
+    } catch (error) {
+        console.error('Error generating notification:', error);
+        throw error;
+    }
+};
+
+// Send notification to multiple users
+exports.sendBulkNotification = async (notificationData) => {
+    try {
+        const {
+            userIds,
+            message,
+            type = 0,
+        } = notificationData;
+        const notifications = [];
+
+        for (const userId of userIds) {
+            const notification = await exports.generateNotification({
+                userId: userId,
+                message: message,
+                type: type,
+            });
+            notifications.push(notification);
+        }
+
+        return notifications;
+    } catch (error) {
+        console.error('Error sending bulk notifications:', error);
+        throw error;
+    }
+};

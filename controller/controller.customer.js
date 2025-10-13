@@ -6,7 +6,7 @@ const ModelTask = require("../models/model.task");
 const ModelTaskComment = require("../models/model.taskComment");
 const ModelLead = require("../models/model.lead");
 const ModelLeadContact = require("../models/model.leadContact");
-const { genID } = require("../core/core.utils");
+const { genID, sendBulkNotification, generateNotification } = require("../core/core.utils");
 const ModelLpo = require("../models/model.lpo");
 const ModelLpoProduct = require("../models/model.lpoProduct");
 const ModelInvoice = require("../models/model.invoice");
@@ -15,6 +15,10 @@ const { Types } = require('mongoose');
 const ModelBatch = require("../models/model.batch");
 const ModelCommission = require("../models/moddel.commision");
 const ModelUser = require("../models/model.user");
+const ModelAdmin = require("../models/model.admin");
+const ModelAssignment = require("../models/model.assignment");
+const EmailService = require("../services");
+
 
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -25,6 +29,7 @@ exports.CreateLpo = useAsync(async (req, res) => {
 
         const accountType = req.userType
         const accountID = req.userId
+        const account = req.user
 
         const schema = Joi.object({
             lead: Joi.string().min(3).required(),
@@ -58,12 +63,57 @@ exports.CreateLpo = useAsync(async (req, res) => {
 
             createdProducts = await ModelLpoProduct.insertMany(productsWithLpoId);
         }
+        if (lpo._id) {
+            const invoice = await createInvoiceFromLpo(lpo._id);
 
-        const invoice = await createInvoiceFromLpo(lpo._id);
+            if (accountType === "user") {
+                let managerEmail = null;
+                let managerID = null;
 
-        return res.json(utils.JParser('LPO created successfully', !!lpo, { lpo, products: createdProducts || [], invoice }));
+                const admin = await ModelAdmin.findById(account.admin);
+                const Allmanager = await ModelAssignment.find({ assignedUser: accountID }).populate('assignedtoUser', '_id email');
 
+                if (Allmanager.length > 0) {
+                    const manager = Allmanager[Allmanager.length - 1];
+                    managerEmail = manager.assignedtoUser?.email;
+                    managerID = manager?.assignedtoUser?._id;
+                }
+
+                const createdByData = { fullName: account?.fullName };
+                const totalProducts = validator.product.length;
+                const totalQuantity = validator.product.reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+                const message = `📋 New LPO: ${totalProducts} products (${totalQuantity} units) - ${validator.terms}`;
+
+                // Send emails
+                if (admin?.email) {
+                    EmailService.sendLPOEmail(validator, createdByData, admin.email);
+                }
+                if (managerEmail) {
+                    EmailService.sendLPOEmail(validator, createdByData, managerEmail);
+                }
+
+                // Send notifications only if we have valid recipients
+                const notificationUserIds = [];
+                if (admin?._id) notificationUserIds.push(admin._id.toString());
+                if (managerID) notificationUserIds.push(managerID.toString());
+
+                if (notificationUserIds.length > 0) {
+                    await sendBulkNotification({
+                        userIds: notificationUserIds,
+                        message,
+                        type: 4
+                    });
+                }
+            }
+
+            return res.json(utils.JParser('LPO created successfully', !!lpo, { lpo, products: createdProducts || [], invoice }));
+        } else {
+            return res.status(400).json(utils.JParser('unknown error occured, Try again later', false, []))
+
+        }
     } catch (e) {
+        console.log(e)
         throw new errorHandle(e.message, 500);
     }
 });
@@ -265,7 +315,7 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
         if (!lpo) {
             throw new errorHandle('LPO not found', 404);
         }
-
+        const oldStatus = lpo.status
         // Check stock availability before any updates if status is "In Transit"
         if (status === "In Transit") {
             const lpoProducts = await ModelLpoProduct.find({ lpo: id }).populate('product');
@@ -356,6 +406,9 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
             response.message += ' and customer created';
         }
 
+        const message = `📋 LPO Status Updated: ${oldStatus} → ${status}`;
+        await generateNotification({ userId: lpo.user, message, type: 4 })
+
         return res.json(utils.JParser(response.message, true, response));
 
     } catch (e) {
@@ -366,12 +419,11 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
 //////////////////////////////////////////////////////////////////////////////////////
 ////LEADS ROUTES
 //////////////////////////////////////////////////////////////////////////////////////
-
-
 exports.CreateLead = useAsync(async (req, res) => {
     try {
 
         const accountID = req.userId
+        const account = req.user
         const accountType = req.userType
 
 
@@ -413,6 +465,7 @@ exports.CreateLead = useAsync(async (req, res) => {
 
         let createdContacts;
         const lead = await ModelLead.create(validator);
+        const leadData = lead
         if (validator.contact && validator.contact.length > 0) {
             const contactsWithLeadId = validator.contact.map(contact => ({
                 ...contact,
@@ -420,6 +473,53 @@ exports.CreateLead = useAsync(async (req, res) => {
             }));
 
             createdContacts = await ModelLeadContact.insertMany(contactsWithLeadId);
+        }
+
+        if (accountType === "user") {
+            try {
+                const [admin, assignments] = await Promise.all([
+                    ModelAdmin.findById(account.admin),
+                    ModelAssignment.find({ assignedUser: accountID }).populate('assignedtoUser', '_id email')
+                ]);
+
+                const recipients = {
+                    admin: admin?._id ? { id: admin._id, email: admin.email } : null,
+                    manager: assignments.length > 0 && assignments[assignments.length - 1].assignedtoUser?._id
+                        ? {
+                            id: assignments[assignments.length - 1].assignedtoUser._id,
+                            email: assignments[assignments.length - 1].assignedtoUser.email
+                        }
+                        : null
+                };
+
+                const salesRepData = { fullName: account?.fullName || 'Sales Representative' };
+                const message = `New lead captured: ${leadData?.name || 'Unknown Lead'} by ${salesRepData.fullName}`;
+
+                // Send emails
+                Object.values(recipients).forEach(recipient => {
+                    if (recipient?.email) {
+                        EmailService.sendNewLeadNotification(leadData, salesRepData, recipient.email);
+                    }
+                });
+
+                // Send in-app notifications
+                const notificationUserIds = Object.values(recipients)
+                    .filter(recipient => recipient?.id)
+                    .map(recipient => recipient.id.toString());
+
+                if (notificationUserIds.length > 0) {
+                    await sendBulkNotification({
+                        userIds: notificationUserIds,
+                        message,
+                        type: 3
+                    });
+                }
+
+                console.log(`Notifications sent: ${notificationUserIds.length} recipients`);
+
+            } catch (error) {
+                console.error('Notification error (non-critical):', error.message);
+            }
         }
 
         return res.json(utils.JParser('Lead and contacts created successfully', !!lead, {
@@ -637,29 +737,31 @@ exports.updateLeadStatus = useAsync(async (req, res) => {
 //////////////////////////////////////////////////////////////////////////////////////
 const createInvoiceFromLpo = async (lpoId) => {
     try {
-
+        // Populate the lead field to get lead details
         const lpo = await ModelLpo.findById(lpoId).populate('lead');
+
+        if (!lpo) {
+            throw new Error('LPO not found');
+        }
+
+        if (!lpo.lead || !lpo.lead._id) {
+            throw new Error('Lead not found or invalid lead reference');
+        }
 
         const lpoProducts = await ModelLpoProduct.find({ lpo: lpoId }).populate('product');
 
-        if (!lpo) {
-            throw new errorHandle('Lead not found', 404);
-        }
-
-        // Calculate invoice values
         let totalAmount = 0;
         let totalQty = 0;
 
         lpoProducts.forEach(item => {
             const quantity = parseFloat(item.quantity) || 0;
-            const price = item?.product?.price || 0
+            const price = item?.product?.price || 0;
             totalAmount += quantity * price;
             totalQty += quantity;
         });
 
         const productCount = lpoProducts.length;
 
-        // Calculate due date (7 days from now)
         const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + 7);
 
@@ -669,8 +771,8 @@ const createInvoiceFromLpo = async (lpoId) => {
             lead: lpo.lead._id,
             user: lpo.user,
             admin: lpo.admin,
-            name: lpo.lead.name, // Assuming lead has a name property
-            dueDate: dueDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+            name: lpo.lead.name || 'Unknown Lead',
+            dueDate: dueDate.toISOString().split('T')[0],
             totalAmount: totalAmount.toString(),
             qty: totalQty.toString(),
             products: productCount.toString(),

@@ -68,6 +68,182 @@ exports.sendLoginNotification = (data) => {
         .then(r => LOG_DEBUG ? console.log(r) : null);
 };
 
+exports.sendTaskAssignmentNotification = (data) => {
+    const dueDate = data.dueDate ? new Date(data.dueDate).toLocaleDateString() : 'Not specified';
+
+    new emailTemple(data.email).who("User")
+        .body(`
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <p>Hello <strong>${data.userName}</strong>,</p>
+
+                <p>You have been assigned a new task by <strong>${data.managerName}</strong>.</p>
+
+                <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #0369a1;">
+                    <h3 style="margin-top: 0; color: #0369a1;">📋 Task Details</h3>
+                    <p style="margin: 8px 0;"><strong>Task Title:</strong> ${data.taskTitle}</p>
+                    <p style="margin: 8px 0;"><strong>Due Date:</strong> ${dueDate}</p>
+                    ${data.description ? `<p style="margin: 8px 0;"><strong>Description:</strong> ${data.description}</p>` : ''}
+                </div>
+
+                <div style="background: #f8f9fa; padding: 16px; border-radius: 6px; margin: 20px 0;">
+                    <p style="margin: 5px 0;"><strong>Assigned By:</strong> ${data.managerName}</p>
+                    <p style="margin: 5px 0;"><strong>Assigned On:</strong> ${new Date().toLocaleString()}</p>
+                </div>
+
+                <p>Please review the task details and start working on it as soon as possible.</p>
+
+                <p style="font-size: 14px; color: #059669; background: #f0fdf4; padding: 12px; border-radius: 6px; border-left: 4px solid #059669;">
+                    <strong>💡 Tip:</strong> You can update the task status and add comments in the Sartor CRM system.
+                </p>
+
+                <p>Need help with this task? Contact your manager or reach out to 
+                <a href="mailto:${process.env.EMAIL_SUPPORT}" style="color: #0369a1;">${process.env.EMAIL_SUPPORT}</a>.</p>
+
+                <p>Best regards,<br><strong>The Sartor CRM Team</strong></p>
+            </div>
+        `)
+        .subject(`📋 New Task Assigned: ${data.taskTitle}`)
+        .send()
+        .then(r => LOG_DEBUG ? console.log(r) : null);
+};
+
+exports.sendNewLeadNotification = (leadData, salesRepData, email) => {
+
+    const leadDate = new Date().toLocaleString();
+
+    new emailTemple(email).who("Team")
+        .body(`
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <p>Hello Team,</p>
+
+                    <p>Great news! <strong>${salesRepData.fullName}</strong> has captured a new lead.</p>
+
+                    <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #0369a1;">
+                        <h3 style="margin-top: 0; color: #0369a1;">🎯 New Lead Details</h3>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px;">
+                            <div>
+                                <p style="margin: 8px 0;"><strong>Lead Name:</strong><br>${leadData.name}</p>
+                                <p style="margin: 8px 0;"><strong>Email:</strong><br>${leadData.email}</p>
+                                <p style="margin: 8px 0;"><strong>Phone:</strong><br>${leadData.phone || 'Not provided'}</p>
+                                <p style="margin: 8px 0;"><strong>State:</strong><br>${leadData.state}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 8px 0;"><strong>Business Type:</strong><br>${leadData.type}</p>
+                                <p style="margin: 8px 0;"><strong>Number of Stores:</strong><br>${leadData.stores}</p>
+                                <p style="margin: 8px 0;"><strong>Deal Size:</strong><br>${leadData.dealSize}</p>
+                                <p style="margin: 8px 0;"><strong>Status:</strong><br>${leadData.status}</p>
+                            </div>
+                        </div>
+
+                        ${leadData.address ? `
+                        <div style="margin-top: 15px;">
+                            <p style="margin: 8px 0;"><strong>Address:</strong><br>${leadData.address}</p>
+                        </div>
+                        ` : ''}
+
+                        ${leadData.notes ? `
+                        <div style="margin-top: 15px; background: #f8f9fa; padding: 12px; border-radius: 6px;">
+                            <p style="margin: 8px 0;"><strong>Notes:</strong><br>${leadData.notes}</p>
+                        </div>
+                        ` : ''}
+                    </div>
+
+                    <div style="background: #f8f9fa; padding: 16px; border-radius: 6px; margin: 20px 0;">
+                        <p style="margin: 5px 0;"><strong>Sales Representative:</strong> ${salesRepData.fullName}</p>
+                        <p style="margin: 5px 0;"><strong>Lead Captured On:</strong> ${leadDate}</p>
+                        <p style="margin: 5px 0;"><strong>Lead ID:</strong> #${leadData.userId || 'N/A'}</p>
+                    </div>
+
+                    <p style="font-size: 14px; color: #059669; background: #f0fdf4; padding: 12px; border-radius: 6px; border-left: 4px solid #059669;">
+                        <strong>🚀 Action Required:</strong> Please review this lead and follow up with ${salesRepData.fullName} for next steps.
+                    </p>
+
+                    <p>This lead has been automatically added to your CRM system for tracking.</p>
+
+                    <p>Best regards,<br><strong>The Sartor CRM Team</strong></p>
+                </div>
+            `)
+        .subject(`🎯 New Lead Captured: ${leadData.name} by ${salesRepData.fullName}`)
+        .send()
+        .then(r => LOG_DEBUG ? console.log(`Lead notification sent to ${email}:`, r) : null)
+        .catch(error => console.error(`Failed to send lead notification to ${email}:`, error));
+
+};
+
+exports.sendLPOEmail = (lpoData, createdByData, recipientEmail) => {
+    const lpoDate = new Date().toLocaleString();
+
+    const totalProducts = lpoData.product.length;
+    const totalQuantity = lpoData.product.reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+    new emailTemple(recipientEmail).who("Team")
+        .body(`
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <p>Hello Team,</p>
+
+                <p>A new Local Purchase Order (LPO) has been created by <strong>${createdByData.fullName}</strong>.</p>
+
+                <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #0369a1;">
+                    <h3 style="margin-top: 0; color: #0369a1;">📋 LPO Summary</h3>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                        <div style="text-align: center; padding: 15px; background: white; border-radius: 6px;">
+                            <div style="font-size: 24px; color: #0369a1; font-weight: bold;">${totalProducts}</div>
+                            <div style="font-size: 14px; color: #666;">Total Products</div>
+                        </div>
+                        
+                        <div style="text-align: center; padding: 15px; background: white; border-radius: 6px;">
+                            <div style="font-size: 24px; color: #0369a1; font-weight: bold;">${totalQuantity}</div>
+                            <div style="font-size: 14px; color: #666;">Total Quantity</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 15px; padding: 15px; background: white; border-radius: 6px;">
+                        <p style="margin: 8px 0;"><strong>Payment Terms:</strong> ${lpoData.terms}</p>
+                    </div>
+                </div>
+
+                <div style="background: #f8f9fa; padding: 16px; border-radius: 6px; margin: 20px 0;">
+                    <p style="margin: 5px 0;"><strong>Created By:</strong> ${createdByData.fullName}</p>
+                    <p style="margin: 5px 0;"><strong>LPO Created On:</strong> ${lpoDate}</p>
+                    <p style="margin: 5px 0;"><strong>LPO ID:</strong> #${lpoData.lpoId || 'N/A'}</p>
+                </div>
+
+                <p style="font-size: 14px; color: #059669; background: #f0fdf4; padding: 12px; border-radius: 6px; border-left: 4px solid #059669;">
+                    <strong>📦 Action Required:</strong> Please process this LPO and coordinate with the supplier.
+                </p>
+
+                <p>This LPO has been automatically added to your procurement system.</p>
+
+                <p>Best regards,<br><strong>The Sartor CRM Team</strong></p>
+            </div>
+        `)
+        .subject(`📋 New LPO: ${totalProducts} products by ${createdByData.fullName}`)
+        .send()
+        .then(r => LOG_DEBUG ? console.log(`LPO notification sent to ${recipientEmail}:`, r) : null)
+        .catch(error => console.error(`Failed to send LPO notification to ${recipientEmail}:`, error));
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 exports.sendConsultationConfirmation = (data) => {
     new emailTemple(data.email).who("Consultation Confirmation")

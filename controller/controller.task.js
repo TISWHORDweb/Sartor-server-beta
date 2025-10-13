@@ -6,6 +6,8 @@ const ModelTask = require("../models/model.task");
 const ModelTaskComment = require("../models/model.taskComment");
 const ModelInvoice = require("../models/model.invoice");
 const ModelUser = require("../models/model.user");
+const EmailService = require("../services");
+const { generateNotification } = require("../core/core.utils");
 
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -18,6 +20,7 @@ exports.CreateTask = useAsync(async (req, res) => {
 
         const accountType = req.userType
         const accountID = req.userId
+        const account = req.user
 
         //create data if all data available
         const schema = Joi.object({
@@ -43,7 +46,24 @@ exports.CreateTask = useAsync(async (req, res) => {
             validator.admin = accountID
         }
 
+        const taskOwner = await ModelUser.findOne({ _id: validator.user })
+
+        if (!taskOwner) {
+            throw new errorHandle("User not found", 400);
+        }
         const tasks = await ModelTask.create(validator)
+
+        EmailService.sendTaskAssignmentNotification({
+            email: taskOwner.email,
+            userName: taskOwner?.fullName,
+            managerName: account?.fullName,
+            taskTitle: validator.title,
+            description: validator.description,
+            dueDate: validator.dueDate.toLocaleString()
+        });
+
+        await generateNotification({userId: validator.user, message: `You have been assigned a new task by ${taskOwner.fullName}`, type: 2})
+
         return res.json(utils.JParser('Tasks created successfully', !!tasks, tasks));
 
     } catch (e) {
