@@ -27,6 +27,9 @@ const lpoSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'model-user',
     },
+    deliveryCode: {
+        type: String,
+    },
     admin: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'model-admin',

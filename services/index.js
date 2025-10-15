@@ -225,9 +225,48 @@ exports.sendLPOEmail = (lpoData, createdByData, recipientEmail) => {
         .catch(error => console.error(`Failed to send LPO notification to ${recipientEmail}:`, error));
 };
 
+exports.sendLPOProcessingEmail = (lpoData, recipientData) => {
+    const lpoDate = new Date(lpoData.createdAt || Date.now()).toLocaleString();
+    const deliveryCode = lpoData.deliveryCode || "N/A";
+    const recipientEmail = recipientData.email
 
+    new emailTemple(recipientEmail).who(recipientData.fullName)
+        .body(`
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
 
+                <p>Hello <strong>${recipientData.fullName}</strong>,</p>
 
+                <p>We’re pleased to inform you that your Local Purchase Order (LPO) is currently 
+                <strong style="color:#d97706;">in processing</strong>.</p>
+
+                <div style="background: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #059669;">
+                    <h3 style="margin-top: 0; color: #065f46;">📦 LPO Details</h3>
+
+                    <div style="text-align: center; margin: 20px 0;">
+                        <p style="font-size: 16px; color: #555; margin-bottom: 8px;">Your Delivery Code</p>
+                        <div style="font-size: 28px; font-weight: bold; color: #059669; background: #d1fae5; display: inline-block; padding: 12px 24px; border-radius: 8px; letter-spacing: 1px;">
+                            ${deliveryCode}
+                        </div>
+                    </div>
+
+                    <p style="margin: 8px 0;"><strong>LPO Date:</strong> ${lpoDate}</p>
+                    <p style="margin: 8px 0;"><strong>Status:</strong> In Processing</p>
+
+                    <div style="margin-top: 15px; padding: 15px; background: white; border-radius: 6px;">
+                        <p style="margin: 8px 0;"><strong>Payment Terms:</strong> ${lpoData.terms || 'N/A'}</p>
+                    </div>
+                </div>
+
+                <p style="margin-top: 20px;">Thank you for your patience and trust in us.</p>
+
+                <p>Warm regards,<br><strong>The Sartor Procurement Team</strong></p>
+            </div>
+        `)
+        .subject(`🚚 Your LPO is Now in Processing | Delivery Code: ${deliveryCode}`)
+        .send()
+        .then(r => LOG_DEBUG ? console.log(`Processing email sent to ${recipientEmail}:`, r) : null)
+        .catch(error => console.error(`Failed to send LPO processing email to ${recipientEmail}:`, error));
+};
 
 
 

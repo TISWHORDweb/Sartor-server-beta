@@ -61,6 +61,7 @@ exports.GetAllLabels = useAsync(async (req, res) => {
                 path: "batch",
                 populate: { path: "supplier" }
             })
+            .sort({ _id: -1 })
             .lean();
 
         if (limit !== null) query = query.skip(skip).limit(limit);

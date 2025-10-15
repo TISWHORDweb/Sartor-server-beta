@@ -148,7 +148,7 @@ exports.GetAllProducts = useAsync(async (req, res) => {
         }
 
         // Get products
-        let query = ModelProduct.find(filter).lean();
+        let query = ModelProduct.find(filter).sort({ _id: -1 }).lean();
         if (limit !== null) query = query.skip(skip).limit(limit);
         const products = await query.exec();
 
@@ -284,6 +284,7 @@ exports.GetAllProductBatch = useAsync(async (req, res) => {
         const { id } = req.params;
         const batches = await ModelBatch.find({ product: id })
             .populate('supplier')
+            .sort({ _id: -1 })
             .lean();
 
         if (!batches) {
@@ -409,6 +410,7 @@ exports.GetAllRestocks = useAsync(async (req, res) => {
         const query = ModelRestock.find(filter)
             .populate('supplier')
             .populate('product')
+            .sort({ _id: -1 })
             .lean();
 
         if (limit !== null) query.skip(skip).limit(limit);
@@ -789,6 +791,7 @@ exports.GetAllBatches = useAsync(async (req, res) => {
         const query = ModelBatch.find(filter)
             .populate("supplier")
             .populate("product")
+            .sort({ _id: -1 })
             .lean();
 
         if (limit !== null) query.skip(skip).limit(limit);

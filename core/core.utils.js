@@ -195,3 +195,17 @@ exports.sendBulkNotification = async (notificationData) => {
         throw error;
     }
 };
+
+exports.generateDeliveryCode = async () => {
+    // Get today's date in YYYYMMDD format
+    const date = new Date();
+    const formattedDate = date.toISOString().slice(0, 10).replace(/-/g, '');
+
+    // Generate a random 5-character alphanumeric code
+    const randomPart = Math.random().toString(36).substring(2, 7).toUpperCase();
+
+    // Combine parts into a standard delivery code
+    const deliveryCode = `LPO-DEL-${formattedDate}-${randomPart}`;
+
+    return deliveryCode;
+}

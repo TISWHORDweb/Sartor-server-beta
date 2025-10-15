@@ -6,7 +6,7 @@ const ModelTask = require("../models/model.task");
 const ModelTaskComment = require("../models/model.taskComment");
 const ModelLead = require("../models/model.lead");
 const ModelLeadContact = require("../models/model.leadContact");
-const { genID, sendBulkNotification, generateNotification } = require("../core/core.utils");
+const { genID, sendBulkNotification, generateNotification, generateDeliveryCode } = require("../core/core.utils");
 const ModelLpo = require("../models/model.lpo");
 const ModelLpoProduct = require("../models/model.lpoProduct");
 const ModelInvoice = require("../models/model.invoice");
@@ -179,7 +179,16 @@ exports.GetAllLpos = useAsync(async (req, res) => {
 
         let filter = {};
         if (accountType === "user") {
-            filter.user = accountID;
+            const user = ModelUser.findById(accountID)
+            if (user?.role === "Merchandiser") {
+                filter.status = { $in: ["sorted", "processing"] };
+                filter.admin = user.admin;
+            } else if (user?.role === "Driver") {
+                filter.status = { $in: ["sorted", "processing", "In Transit" ] };
+                filter.admin = user.admin;
+            } else {
+                filter.user = accountID;
+            }
         } else if (accountType === "admin") {
             filter.admin = accountID;
         }
@@ -194,7 +203,8 @@ exports.GetAllLpos = useAsync(async (req, res) => {
             ];
         }
 
-        let query = ModelLpo.find(filter)
+
+        let query = ModelLpo.find(filter).sort({ _id: -1 })
             .populate("user", "_id fullName")
             .populate("admin", "_id fullName")
             .populate("lead") // can extend with fields
@@ -306,12 +316,13 @@ exports.GetSingleLpo = useAsync(async (req, res) => {
 exports.updateLPOStatus = useAsync(async (req, res) => {
     try {
         const { status, id } = req.body;
+        let deliveryCode = "";
 
         if (!status) {
             throw new errorHandle('Status is required', 400);
         }
 
-        const lpo = await ModelLpo.findById(id);
+        const lpo = await ModelLpo.findById(id).populate('lead');
         if (!lpo) {
             throw new errorHandle('LPO not found', 404);
         }
@@ -338,11 +349,29 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
             }
         }
 
+        if (status === "Processing") {
+            if (lpo?.lead?.email) {
+                deliveryCode = generateDeliveryCode()
+
+                const lpoData = {
+                    createdAt: lpo.createdAt,
+                    deliveryCode
+                }
+                const recipientData = {
+                    fullName: lpo?.lead?.fullName,
+                    email: lpo?.lead?.email
+                }
+
+                EmailService.sendLPOProcessingEmail(lpoData, recipientData);
+            }
+        }
+
         // Only update status if stock validation passes
         const updatedLPO = await ModelLpo.findByIdAndUpdate(
             id,
             {
                 status,
+                deliveryCode,
                 updated_at: Date.now()
             },
             { new: true }
@@ -626,6 +655,7 @@ exports.GetAllLeads = useAsync(async (req, res) => {
         let query = ModelLead.find(filter)
             .populate("user", "_id fullName")
             .populate("admin", "_id fullName")
+            .sort({ _id: -1 })
             .lean();
 
         if (limit !== null) {
@@ -823,6 +853,7 @@ exports.GetAllInvoices = useAsync(async (req, res) => {
             .populate("lpo")
             .populate("admin", "_id fullName")
             .populate("user", "_id fullName")
+            .sort({ _id: -1 })
             .lean();
 
         if (limit !== null) {
@@ -951,6 +982,7 @@ exports.GetAllCustomer = useAsync(async (req, res) => {
             .populate("lead")
             .populate("admin", "_id fullName")
             .populate("user", "_id fullName")
+            .sort({ _id: -1 })
             .lean();
 
         if (limit !== null) query = query.skip(skip).limit(limit);
@@ -1042,7 +1074,7 @@ exports.GetAllUserCommision = useAsync(async (req, res) => {
         const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
         const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
 
-        const query = ModelInvoice.find({ user: req.params.id }).lean();
+        const query = ModelInvoice.find({ user: req.params.id }).sort({ _id: -1 }).lean();
         if (limit !== null) {
             query.skip(skip).limit(limit);
         }

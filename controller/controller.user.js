@@ -150,6 +150,7 @@ exports.allUser = useAsync(async (req, res) => {
 
         const query = ModelUser.find(filter)
             .select('-password') // Exclude password
+            .sort({ _id: -1 })
             .lean();
 
         if (limit !== null) query.skip(skip).limit(limit);
@@ -205,6 +206,7 @@ exports.GetUsersByRole = useAsync(async (req, res) => {
 
         const query = ModelUser.find(filter)
             .select('-password') // Exclude password field
+            .sort({ _id: -1 })
             .lean();
 
         if (limit !== null) query.skip(skip).limit(limit);
@@ -547,7 +549,7 @@ exports.GetAllContacts = useAsync(async (req, res) => {
             ];
         }
 
-        const query = ModelContact.find(filter).lean();
+        const query = ModelContact.find(filter).sort({ _id: -1 }).lean();
 
         if (limit !== null) query.skip(skip).limit(limit);
         const contacts = await query.exec();
@@ -655,7 +657,7 @@ exports.GetAllPermissions = useAsync(async (req, res) => {
         const limit = req.query.limit === "all" ? null : parseInt(req.query.limit) || 10;
         const skip = req.query.limit === "all" ? 0 : (page - 1) * limit;
 
-        const query = ModelPermission.find().populate("user").lean();
+        const query = ModelPermission.find().populate("user").sort({ _id: -1 }).lean();
         if (limit !== null) query.skip(skip).limit(limit);
 
         const permissions = await query.exec();
@@ -752,7 +754,7 @@ exports.GetAllNotifications = useAsync(async (req, res) => {
             filter.type = parseInt(req.query.type);
         }
 
-        const query = ModelNotification.find(filter).lean();
+        const query = ModelNotification.find(filter).sort({ _id: -1 }).lean();
         if (limit !== null) query.skip(skip).limit(limit);
 
         // Sort by creation date (newest first)
@@ -796,7 +798,7 @@ exports.GetUserNotifications = useAsync(async (req, res) => {
         const limit = parseInt(req.query.limit) || 3;
         const skip = (page - 1) * limit;
 
-        const query = ModelNotification.find({ user: userId }).lean();
+        const query = ModelNotification.find({ user: userId }).sort({ _id: -1 }).lean();
         query.skip(skip).limit(limit).sort({ creationDateTime: -1 });
 
         const notifications = await query.exec();
@@ -977,7 +979,7 @@ exports.GetUsersByAssignmentType = useAsync(async (req, res) => {
             userFilter.admin = adminId;
         }
 
-        const query = ModelUser.find(userFilter).lean();
+        const query = ModelUser.find(userFilter).sort({ _id: -1 }).lean();
         query.skip(skip).limit(limit).sort({ fullName: 1 });
 
         const users = await query.exec();

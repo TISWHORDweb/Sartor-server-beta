@@ -374,6 +374,7 @@ exports.taskComments = useAsync(async (req, res) => {
             const comments = await ModelTaskComment.find({ task: task._id })
                 .populate("user", "_id fullName userRole")
                 .populate("admin", "_id fullName userRole")
+                .sort({ _id: -1 })
 
             res.json(utils.JParser('Task comment fetch successfully', !!task, { task, comments }));
         } else {
