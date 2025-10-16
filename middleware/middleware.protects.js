@@ -6,6 +6,7 @@ const { errorHandle, useAsync, utils } = require('../core');
 const CryptoJS = require("crypto-js");
 const ModelUser = require('../models/model.user');
 const ModelAdmin = require('../models/model.admin');
+const ModelSartor = require('../models/model.sartor');
 
 //body safe state
 exports.bodyParser = (req, res, next) => {
@@ -93,3 +94,35 @@ exports.roleMiddleware = (roles) => {
     next();
   };
 };
+
+exports.authSartorMiddleware = useAsync(async (req, res, next) => {
+  const sToken = req.headers["s-token"];
+
+  if (!sToken || sToken === "undefined") {
+    return res
+      .status(401)
+      .json(utils.JParser("Unauthorized Access, Use a valid token and try again", false, []));
+  }
+
+  let account = await ModelSartor.findOne({ token: sToken });
+  let accountType = "sartor";
+
+  if (!account) {
+    return res
+      .status(401)
+      .json(utils.JParser("Invalid token code or token, Use a valid token and try again", false, []));
+  }
+
+  if (account.blocked) {
+    return res
+      .status(403)
+      .json(utils.JParser("Token is valid but not authorized for this route", false, []));
+  }
+
+  // attach to req
+  req.userId = account._id;
+  req.user = account;
+  req.userType = accountType; 
+
+  return next();
+});

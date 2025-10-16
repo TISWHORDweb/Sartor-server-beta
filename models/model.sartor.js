@@ -1,6 +1,6 @@
 const mongoose = require('mongoose')
 
-const adminSchema = new mongoose.Schema({
+const sartorSchema = new mongoose.Schema({
     fullName: {
         type: String,
     },
@@ -33,7 +33,7 @@ const adminSchema = new mongoose.Schema({
     },
     userRole: {
         type: String,
-        default: "admin"
+        default: "sartor"
     },
     isDeleted: {
         type: Boolean,
@@ -45,25 +45,20 @@ const adminSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        default: "Super-Admin"
+        default: "sartor"
     },
     type: { type: Number, default: 0 },
-    adminID: { type: String },
-    isDisabled: {
-        type: Boolean,
-        default: false
-    },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }
 })
 
-adminSchema.pre(/^find/, function (next) {
+sartorSchema.pre(/^find/, function (next) {
     if (this.getFilter().includeDeleted !== true) {
         this.where({ isDeleted: false });
     }
     next();
 });
 
-const ModelAdmin = mongoose.model("model-admin", adminSchema)
+const ModelSartor = mongoose.model("model-sartor", sartorSchema)
 
-module.exports = ModelAdmin
+module.exports = ModelSartor

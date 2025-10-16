@@ -10,13 +10,14 @@ const dotenv = require("dotenv")
 const sha1 = require('sha1');
 dotenv.config()
 const request = require('request');
-const { notify, genID } = require('../core/core.utils');
+const { notify, genID, checkEmailExist } = require('../core/core.utils');
 const { useAsync, utils, errorHandle, } = require('./../core');
 const ModelUser = require('../models/model.user')
 const EmailService = require("../services");
 const ModelAdmin = require('../models/model.admin')
 const ModelPermission = require('../models/model.permission')
 const Joi = require('joi')
+const ModelSartor = require('../models/model.sartor')
 
 
 
@@ -34,6 +35,10 @@ exports.UserRegister = useAsync(async (req, res) => {
         req.body.lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
         req.body.userId = userId
 
+        const check = await checkEmailExist(req.body.email);
+        if (check.exists) {
+            return res.status(400).json(utils.JParser(`Email already exists, kindly use another email and try again`, false, []));
+        }
 
         const validates = await ModelAdmin.findOne({ email: req.body.email })
         if (validates) {
@@ -41,6 +46,45 @@ exports.UserRegister = useAsync(async (req, res) => {
         } else {
 
             let user = await new ModelAdmin(req.body)
+
+            await user.save().then(data => {
+
+                data.password = "********************************"
+
+                return res.json(utils.JParser('Congratulation Account created successfully', !!data, data));
+
+            })
+        }
+    } catch (e) {
+        throw new errorHandle(e.message, 400)
+    }
+})
+
+exports.sartorRegister = useAsync(async (req, res) => {
+
+    if (req.body.password) {
+        req.body.password = await bcrypt.hash(req.body.password, 13)
+    }
+
+    try {
+
+        if (!req.body.email || !req.body.password) return res.json(utils.JParser('please check the fields', false, []));
+        const userId = await genID(1);
+        req.body.token = sha1(req.body.email + new Date())
+        req.body.lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
+        req.body.userId = "SAR-" + userId
+
+        const check = await checkEmailExist(req.body.email);
+        if (check.exists) {
+            return res.status(400).json(utils.JParser(`Email already exists, kindly use another email and try again`, false, []));
+        }
+
+        const validates = await ModelSartor.findOne({ email: req.body.email })
+        if (validates) {
+            return res.status(400).json(utils.JParser('There is another user with this email', false, []));
+        } else {
+
+            let user = await new ModelSartor(req.body)
 
             await user.save().then(data => {
 
@@ -63,6 +107,7 @@ exports.UserLogin = useAsync(async (req, res) => {
         // find both accounts by email
         const user = await ModelUser.findOne({ email });
         const admin = await ModelAdmin.findOne({ email });
+        const sartor = await ModelSartor.findOne({ email });
 
         let account = null;
         let accountType = null;
@@ -77,6 +122,10 @@ exports.UserLogin = useAsync(async (req, res) => {
         } else if (admin && await bcrypt.compare(password, admin.password)) {
             account = admin;
             accountType = "admin";
+            permission = "All"
+        } else if (sartor && await bcrypt.compare(password, sartor.password)) {
+            account = sartor;
+            accountType = "sartor";
             permission = "All"
         } else {
             return res.status(400).json(utils.JParser("Invalid email or password", false, []));
@@ -93,7 +142,7 @@ exports.UserLogin = useAsync(async (req, res) => {
         const online = new Date();
 
         // update the right model
-        const Model = accountType === "user" ? ModelUser : ModelAdmin;
+        const Model = accountType === "user" ? ModelUser : accountType === "admin" ? ModelAdmin : ModelSartor
         await Model.updateOne(
             { _id: account._id },
             {
@@ -106,9 +155,9 @@ exports.UserLogin = useAsync(async (req, res) => {
         );
 
         // send login notification (optional for admins)
-        if (accountType === "user") {
-            EmailService.sendLoginNotification({ name: account.fullName, email: account.email });
-        }
+        // if (accountType === "user") {
+        EmailService.sendLoginNotification({ name: account.fullName, email: account.email });
+        // }
 
         // attach token for response
         account.token = newToken;

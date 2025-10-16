@@ -7,6 +7,7 @@ const bodyParser = require('body-parser')
 const Auth = require('./routes/route.auth')
 let errorHandler = require('./middleware/middleware.error');
 const Universal = require('./routes/route.universal')
+const Sartor = require('./routes/route.sartor')
 
 const mongoose = require('mongoose');
 const { errorHandle } = require("./core");
@@ -56,7 +57,9 @@ app.use('/docs', express.static(path.join(__dirname, 'docs')));
 app.use(bodyParser.json())
 
 app.use("/api/v1/auth", Auth)
+app.use("/api/v1/sartor", Sartor)
 app.use("/api/v1", Universal)
+
 
 app.use('*', (req, res) => {
     throw new errorHandle("Resource not found", 404);

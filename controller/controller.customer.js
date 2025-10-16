@@ -180,7 +180,7 @@ exports.GetAllLpos = useAsync(async (req, res) => {
         let filter = {};
         if (accountType === "user") {
             const user = ModelUser.findById(accountID)
-            if (user?.role === "Merchandiser") {
+            if (user?.role === "Inventory Manager") {
                 filter.status = { $in: ["sorted", "processing"] };
                 filter.admin = user.admin;
             } else if (user?.role === "Driver") {

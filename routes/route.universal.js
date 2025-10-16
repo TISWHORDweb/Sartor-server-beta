@@ -150,11 +150,7 @@ router.get('/notification/:id', useAsync(authMiddleware), useAsync(roleMiddlewar
 
 //ASSIGNMENT
 router.post('/assignment', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), assignUserToUser );
-// router.put('/notification/read/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), MarkAsRead );
-// router.put('/notification/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdateNotification );
-// router.delete('/notification/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteNotification );
 router.get('/assignment', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetUsersByAssignmentType );
-// router.get('/notification/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetNotification );
 
 /**
  * Export lastly

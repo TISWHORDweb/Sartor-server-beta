@@ -1,7 +1,7 @@
 const dotenv = require("dotenv")
 dotenv.config()
 const { useAsync, utils, errorHandle, } = require('../core');
-const { genID } = require("../core/core.utils");
+const { genID, checkEmailExist } = require("../core/core.utils");
 const bcrypt = require('bcryptjs')
 const CryptoJS = require("crypto-js")
 const sha1 = require('sha1');
@@ -268,6 +268,10 @@ exports.createUser = useAsync(async (req, res) => {
         req.body.lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString()
         req.body.userId = userId
 
+        const check = await checkEmailExist(req.body.email);
+        if (check.exists) {
+            return res.status(400).json(utils.JParser(`Email already exists, kindly use another email and try again`, false, []));
+        }
 
         const validates = await ModelUser.findOne({ email: req.body.email })
         if (validates) {

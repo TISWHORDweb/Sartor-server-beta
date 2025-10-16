@@ -1,3 +1,4 @@
+const ModelAdmin = require("../models/model.admin");
 const ModelBatch = require("../models/model.batch");
 const ModelCustomer = require("../models/model.customer");
 const ModelInvoice = require("../models/model.invoice");
@@ -5,6 +6,7 @@ const ModelProduct = require("../models/model.Label");
 const ModelLead = require("../models/model.lead");
 const ModelLpo = require("../models/model.lpo");
 const ModelNotification = require("../models/model.notification");
+const ModelSartor = require("../models/model.sartor");
 const ModelUser = require("../models/model.user");
 const multer = require('multer');
 const path = require('path');
@@ -208,4 +210,26 @@ exports.generateDeliveryCode = async () => {
     const deliveryCode = `LPO-DEL-${formattedDate}-${randomPart}`;
 
     return deliveryCode;
+}
+
+
+/**
+ * Check if an email exists across User, Admin, or Sartor models
+ * @param {string} email - The email address to check
+ * @returns {Promise<{exists: boolean, model?: string}>}
+ */
+exports.checkEmailExist = async (email) => {
+  if (!email) throw new Error("Email is required");
+
+  const [user, admin, sartor] = await Promise.all([
+    ModelUser.findOne({ email }),
+    ModelAdmin.findOne({ email }),
+    ModelSartor.findOne({ email })
+  ]);
+
+  if (user) return { exists: true, model: "User" };
+  if (admin) return { exists: true, model: "Admin" };
+  if (sartor) return { exists: true, model: "Sartor" };
+
+  return { exists: false };
 }
