@@ -103,7 +103,7 @@ router.get('/batchs', useAsync(authMiddleware), useAsync(roleMiddleware(['user']
 router.get('/batch/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleBatch );
 
 //LABEL
-router.post('/label/upload', upload.single('image'), uploadLabel );
+router.post('/label/upload', upload.single('images'), uploadLabel );
 router.post('/label/verify', upload.single('image'), verifyLabel );
 router.post('/label/webhook', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), labelTrainWebhook );
 router.post('/label', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateLabel );

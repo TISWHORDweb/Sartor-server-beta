@@ -188,73 +188,29 @@ exports.uploadLabel = useAsync(async (req, res) => {
     let tempFiles = [];
 
     try {
-        // Validate required fields
-        if (!req.body.label_id) {
-            throw new errorHandle('label_id is required', 400);
+        const form = new FormData();
+        if (req.file) {
+            form.append('image', fs.createReadStream(req.file.path), {
+                filename: req.file.originalname,
+                contentType: req.file.mimetype
+            });
         }
 
-        const label = await ModelLabel.findById(req.body.label_id);
-        if (label) {
-            // Process external API upload
-            const form = new FormData();
-            if (req.body.batch_id) form.append('batch_id', req.body.batch_id);
-            if (req.body.product_name) form.append('product_name', req.body.product_name);
-            if (req.body.sku) form.append('sku', req.body.sku);
-            if (req.file) {
-                form.append('image', fs.createReadStream(req.file.path), {
-                    filename: req.file.originalname,
-                    contentType: req.file.mimetype
-                });
-            }
+        const apiResponse = await axios.post(
+            `${process.env.LABEL_BASE_URL}/upload`,
+            form,
+            { headers: form.getHeaders() }
+        );
 
-            const apiResponse = await axios.post(
-                `${process.env.LABEL_BASE_URL}/upload_label`,
-                form,
-                { headers: form.getHeaders() }
-            );
-            console.log("console.log " + apiResponse);
+        console.log(apiResponse);
 
+        // Fire-and-forget training API
+        axios.post(`${process.env.LABEL_BASE_URL}/train`).catch(err => console.error('Training API failed (non-critical):', err));
 
-            if (apiResponse.data?.modified_images?.length > 0) {
+        console.log("training")
 
-                if (!label) throw new errorHandle('Label not found', 404);
+        return res.json(utils.JParser('Label processed successfully', true, apiResponse.data));
 
-                // Upload images sequentially to avoid rate limits
-                for (const [index, image] of apiResponse.data.modified_images.entries()) {
-                    if (image.modified_image) {
-                        const tempPath = path.join('/tmp', `upload-${Date.now()}-${index}.jpg`);
-                        fs.writeFileSync(tempPath, image.modified_image.replace(/^data:image\/\w+;base64,/, ''), 'base64');
-                        tempFiles.push(tempPath);
-
-                        try {
-                            const url = await uploadToCloudinary(tempPath);
-                            if (index === 0) label.image = url;
-                            if (index === 1) label.subImage = url;
-                        } finally {
-                            // Clean up even if upload fails
-                            fs.unlinkSync(tempPath);
-                            tempFiles = tempFiles.filter(f => f !== tempPath);
-                        }
-                    }
-                }
-
-                await label.save();
-
-                // Fire-and-forget training API
-                axios.post(`${process.env.LABEL_BASE_URL}/train`, {
-                    label_id: req.body.label_id
-                }).catch(err => console.error('Training API failed (non-critical):', err));
-
-                console.log("training")
-            }
-
-            return res.json(utils.JParser('Label processed successfully', true, {
-                label_id: req.body.label_id,
-                image_count: apiResponse.data?.modified_images?.length || 0
-            }));
-        } else {
-            return res.status(400).json(utils.JParser('Label not found', false, []));
-        }
     } catch (e) {
         console.log("newerror.  " + e);
 
@@ -280,7 +236,7 @@ exports.verifyLabel = useAsync(async (req, res) => {
             form,
             { headers: form.getHeaders() }
         );
-
+        
         if (apiResponse) {
             return res.json(utils.JParser('Label verify successfully ', true, apiResponse.data));
 
