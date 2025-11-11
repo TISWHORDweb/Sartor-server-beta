@@ -190,18 +190,17 @@ exports.uploadLabel = useAsync(async (req, res) => {
     try {
         const form = new FormData();
         if (req.file) {
-            form.append('image', fs.createReadStream(req.file.path), {
+            form.append('images', fs.createReadStream(req.file.path), {
                 filename: req.file.originalname,
                 contentType: req.file.mimetype
             });
         }
-
-        const apiResponse = await axios.post(
-            `${process.env.LABEL_BASE_URL}/upload`,
-            form,
+        const url = `${process.env.LABEL_BASE_URL}/upload`
+        const apiResponse = await axios.post(url, form,
             { headers: form.getHeaders() }
         );
-
+    
+        console.log(url);
         console.log(apiResponse);
 
         // Fire-and-forget training API
@@ -236,7 +235,7 @@ exports.verifyLabel = useAsync(async (req, res) => {
             form,
             { headers: form.getHeaders() }
         );
-        
+
         if (apiResponse) {
             return res.json(utils.JParser('Label verify successfully ', true, apiResponse.data));
 
