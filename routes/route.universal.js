@@ -11,8 +11,8 @@ const { getUser, deleteUser, singleUser, editUser, allUser, createUser, GetDashb
 // const { product, singleProduct, allProduct, deleteProduct, editProduct, getAdminProduct, productCategory, singleProductCategory, editProductCategory, allProductCategory, deleteProductCategory, getProductsByCategory } = require('../controller/controller.product');
 const { deleteTasks, CreateTask, editTask } = require('../controller/controller.task');
 const { useAsync } = require('../core');
-const { CreateLead, UpdateLead, DeleteLead, GetAllLeads, GetSingleLead, CreateLpo, UpdateLpo, DeleteLpo, GetAllLpos, GetSingleLpo, GetAllInvoices, GetSingleInvoice, DeleteInvoice, changeInvoiceStatus, updateLeadStatus, GetAllCustomer, UpdateCustomer, DeleteCustomer, GetCustomer, updateLPOStatus, GetAllUserLeads, GetAllUserLpos, GetAllUserCustomer, GetAllUserInvoices, GetAllUserCommision } = require('../controller/controller.customer');
-const { CreateSupplier, UpdateSupplier, DeleteSupplier, GetAllSuppliers, GetSingleSupplier, CreateProduct, UpdateProduct, DeleteProduct, GetAllProducts, GetSingleProduct, CreateRestock, UpdateRestock, DeleteRestock, GetAllRestocks, GetSingleRestock, CreateBatch, GetAllBatches, GetSingleBatch, UpdateBatch, DeleteBatch, GetAllProductBatch, calculateProductPricing, updateProductPrice } = require('../controller/controller.product');
+const { CreateLead, UpdateLead, DeleteLead, GetAllLeads, GetSingleLead, CreateLpo, UpdateLpo, DeleteLpo, GetAllLpos, GetSingleLpo, GetAllInvoices, GetSingleInvoice, DeleteInvoice, changeInvoiceStatus, updateLeadStatus, GetAllCustomer, UpdateCustomer, DeleteCustomer, GetCustomer, updateLPOStatus, GetAllUserLeads, GetAllUserLpos, GetAllUserCustomer, GetAllUserInvoices, GetAllUserCommision, UpdateLeadContact } = require('../controller/controller.customer');
+const { CreateSupplier, UpdateSupplier, DeleteSupplier, GetAllSuppliers, GetSingleSupplier, CreateProduct, UpdateProduct, DeleteProduct, GetAllProducts, GetSingleProduct, CreateRestock, UpdateRestock, DeleteRestock, GetAllRestocks, GetSingleRestock, CreateBatch, GetAllBatches, GetSingleBatch, UpdateBatch, DeleteBatch, GetAllProductBatch, calculateProductPricing, updateProductPrice, UpdateRestockProduct } = require('../controller/controller.product');
 const { uploadLabel, labelTrainWebhook, CreateLabel, GetAllLabels, GetLabel, UpdateLabel, DeleteLabel, verifyLabel } = require('../controller/controller.label');
 const { upload } = require('../core/core.utils');
 const { universalSearch } = require('../controller/controller.search');
@@ -52,6 +52,7 @@ router.get('/task/comment/:id', useAsync(authMiddleware), useAsync(roleMiddlewar
 //LEADS
 router.post('/lead', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateLead );
 router.put('/lead/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdateLead );
+router.put('/lead/contact/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdateLeadContact );
 router.delete('/lead/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteLead );
 router.get('/leads', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllLeads );
 router.get('/lead/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleLead );
@@ -85,6 +86,7 @@ router.put('/product/price', useAsync(authMiddleware), useAsync(roleMiddleware([
 //RESTOCK
 router.post('/restock', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateRestock );
 router.put('/restock/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdateRestock );
+router.put('/restock/product/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdateRestockProduct );
 router.delete('/restock/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteRestock );
 router.get('/restocks', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllRestocks );
 router.get('/restock/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleRestock );

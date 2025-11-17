@@ -8,6 +8,7 @@ const ModelSupplier = require("../models/model.supplier");
 const { genID } = require("../core/core.utils");
 const ModelBatch = require("../models/model.batch");
 const ModelUser = require("../models/model.user");
+const ModelRestockProduct = require("../models/model.restockProduct");
 
 
 exports.CreateProduct = useAsync(async (req, res) => {
@@ -301,23 +302,24 @@ exports.GetAllProductBatch = useAsync(async (req, res) => {
 ////RESTOCK ROUTES
 //////////////////////////////////////////////////////////////////////////////////////
 
-
 exports.CreateRestock = useAsync(async (req, res) => {
     try {
         const accountType = req.userType;
         const accountID = req.userId;
 
-        const itemSchema = Joi.object({
-            supplier: Joi.string().required(),
+        const productSchema = Joi.object({
             product: Joi.string().required(),
             quantity: Joi.string().required()
         });
 
-        const schema = Joi.array().items(itemSchema).required();
-        const validatedItems = await schema.validateAsync(req.body);
+        const schema = Joi.object({
+            supplier: Joi.string().required(),
+            products: Joi.array().items(productSchema).min(1).required()
+        });
+
+        const { supplier, products } = await schema.validateAsync(req.body);
 
         let adminId;
-
         if (accountType === "user") {
             const user = await ModelUser.findOne({ _id: accountID }).lean();
             if (!user) {
@@ -328,30 +330,40 @@ exports.CreateRestock = useAsync(async (req, res) => {
             adminId = accountID;
         }
 
-        // Attach user/admin info to each item
-        const restocksWithMeta = validatedItems.map(item => ({
-            ...item,
+        const restock = await ModelRestock.create({
+            supplier,
             admin: adminId
+        });
+
+        const restockProductsData = products.map(item => ({
+            restock: restock._id,
+            product: item.product,
+            quantity: item.quantity
         }));
 
-        const restocks = await ModelRestock.insertMany(restocksWithMeta);
+        const restockProducts = await ModelRestockProduct.insertMany(restockProductsData);
 
         return res.json(
-            utils.JParser(`${restocks.length} restocks created successfully`, true, restocks)
+            utils.JParser(
+                `Restock created with ${restockProducts.length} products`,
+                true,
+                { restock, restockProducts }
+            )
         );
+
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }
 });
 
 
+
 exports.UpdateRestock = useAsync(async (req, res) => {
     try {
         const { id } = req.params;
+
         const schema = Joi.object({
-            supplier: Joi.string().optional(),
-            product: Joi.string().optional(),
-            quantity: Joi.string().optional()
+            supplier: Joi.string().optional()
         });
 
         const validator = await schema.validateAsync(req.body);
@@ -363,33 +375,39 @@ exports.UpdateRestock = useAsync(async (req, res) => {
             return res.status(404).json(utils.JParser('Restock not found', false, null));
         }
 
-        return res.json(utils.JParser('Restock updated successfully', !!updatedRestock, updatedRestock));
+        return res.json(utils.JParser('Restock updated successfully', true, updatedRestock));
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }
 });
 
+
 exports.DeleteRestock = useAsync(async (req, res) => {
     try {
         const { id } = req.params;
+
         const deletedRestock = await ModelRestock.findByIdAndUpdate(
             id,
-            {
-                isDeleted: true,
-                updated_at: Date.now()
-            },
+            { isDeleted: true, updated_at: Date.now() },
             { new: true }
-        );;
+        );
 
         if (!deletedRestock) {
             return res.status(404).json(utils.JParser('Restock not found', false, null));
         }
 
-        return res.json(utils.JParser('Restock deleted successfully', !!deletedRestock, deletedRestock));
+        // Soft delete all child products
+        await ModelRestockProduct.updateMany(
+            { restock: id },
+            { isDeleted: true, updated_at: Date.now() }
+        );
+
+        return res.json(utils.JParser('Restock deleted successfully', true, deletedRestock));
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }
 });
+
 
 exports.GetAllRestocks = useAsync(async (req, res) => {
     try {
@@ -398,29 +416,36 @@ exports.GetAllRestocks = useAsync(async (req, res) => {
 
         const page = parseInt(req.query.page) || 1;
         const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
-        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+        const skip = limit ? (page - 1) * limit : 0;
 
         let filter = {};
+
         if (accountType === "user") {
-            filter = { user: accountID };
+            filter.admin = req.userAdmin; // or derive admin based on your logic
         } else if (accountType === "admin") {
-            filter = { admin: accountID };
+            filter.admin = accountID;
         }
 
         const query = ModelRestock.find(filter)
             .populate('supplier')
-            .populate('product')
             .sort({ _id: -1 })
             .lean();
 
-        if (limit !== null) query.skip(skip).limit(limit);
+        if (limit) query.skip(skip).limit(limit);
+
         const restocks = await query.exec();
 
-        const response = utils.JParser('Restocks fetched successfully', !!restocks,
-            { data: restocks });
+        // Attach products for each restock
+        for (let restock of restocks) {
+            restock.products = await ModelRestockProduct.find({ restock: restock._id })
+                .populate("product")
+                .lean();
+        }
 
-        if (limit !== null) {
-            const totalRestocks = await ModelRestock.countDocuments();
+        const response = utils.JParser('Restocks fetched successfully', true, { data: restocks });
+
+        if (limit) {
+            const totalRestocks = await ModelRestock.countDocuments(filter);
             response.data.pagination = {
                 currentPage: page,
                 totalPages: Math.ceil(totalRestocks / limit),
@@ -430,28 +455,70 @@ exports.GetAllRestocks = useAsync(async (req, res) => {
         }
 
         return res.json(response);
+
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }
 });
 
+
 exports.GetSingleRestock = useAsync(async (req, res) => {
     try {
         const { id } = req.params;
+
         const restock = await ModelRestock.findById(id)
-            .populate('supplier')
-            .populate('product')
+            .populate("supplier")
             .lean();
 
         if (!restock) {
             return res.status(404).json(utils.JParser('Restock not found', false, null));
         }
 
+        // Attach its products
+        const products = await ModelRestockProduct.find({ restock: id })
+            .populate("product")
+            .lean();
+
+        restock.products = products;
+
         return res.json(utils.JParser('Restock fetched successfully', true, restock));
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }
 });
+
+exports.UpdateRestockProduct = useAsync(async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const schema = Joi.object({
+            product: Joi.string().optional(),
+            quantity: Joi.string().optional()
+        });
+
+        const validator = await schema.validateAsync(req.body);
+        validator.updated_at = Date.now();
+
+        // Update but do not allow updating deleted product
+        const updatedProduct = await ModelRestockProduct.findOneAndUpdate(
+            { _id: id, isDeleted: false },
+            validator,
+            { new: true }
+        ).populate("product");
+
+        if (!updatedProduct) {
+            return res.status(404).json(utils.JParser("Restock product not found", false, null));
+        }
+
+        return res.json(
+            utils.JParser("Restock product updated successfully", true, updatedProduct)
+        );
+
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
 
 //////////////////////////////////////////////////////////////////////////////////////
 ////SUPPLIER ROUTES

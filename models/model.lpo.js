@@ -13,11 +13,19 @@ const lpoSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ["Delivered", "In Transit", "Processing", "Cancelled", "Sorted", "Received", "Overdue", "To-Do", "Confirmed"],
+        enum: ["Delivered", "In Transit", "Processing", "Cancelled", "Sorted", "Received", "Overdue", "To-Do", "Confirmed", "SOR"],
         default: "Processing"
     },
     lpoId: {
         type: String,
+    },
+    deliveredTo: {
+        type: String,
+        default:""
+    },
+    deliveredStatus: {
+        type: Boolean,
+        default: false
     },
     isDeleted: {
         type: Boolean,

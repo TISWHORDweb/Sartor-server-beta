@@ -315,7 +315,7 @@ exports.GetSingleLpo = useAsync(async (req, res) => {
 
 exports.updateLPOStatus = useAsync(async (req, res) => {
     try {
-        const { status, id } = req.body;
+        const { status, id, deliveredTo } = req.body;
         let deliveryCode = "";
 
         if (!status) {
@@ -390,6 +390,8 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
                     status: "Active"
                 });
             }
+
+            await lpo.update({deliveredStatus:true, deliveredTo})
         }
 
         if (status === "In Transit") {
@@ -589,6 +591,29 @@ exports.UpdateLead = useAsync(async (req, res) => {
         }
 
         return res.json(utils.JParser('Lead updated successfully', !!updatedLead, updatedLead));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+exports.UpdateLeadContact = useAsync(async (req, res) => {
+    try {
+        const { id } = req.params;
+        const schema = Joi.object({
+            name: Joi.string().min(2).optional(),
+            email: Joi.string().min(2).optional(),
+            phone: Joi.string().min(2).optional(),
+            role: Joi.string().min(2).optional(),
+        });
+
+        const validator = await schema.validateAsync(req.body);
+        const updatedLeadContact = await ModelLeadContact.findByIdAndUpdate(id, validator, { new: true });
+
+        if (!updatedLeadContact) {
+            return res.status(404).json(utils.JParser('Lead contact not found', false, null));
+        }
+
+        return res.json(utils.JParser('Lead contact updated successfully', !!updatedLeadContact, updatedLeadContact));
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }
@@ -896,7 +921,9 @@ exports.GetSingleInvoice = useAsync(async (req, res) => {
             return res.status(404).json(utils.JParser('Invoice not found', false, null));
         }
 
-        return res.json(utils.JParser('Invoice fetched successfully', !!invoice, invoice));
+        const lpoProducts = await ModelLpoProduct.find({lpo:invoice?.lpo?._id}).populate('product');
+
+        return res.json(utils.JParser('Invoice fetched successfully', !!invoice, {...invoice, lpoProducts}));
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }
