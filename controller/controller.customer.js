@@ -18,6 +18,7 @@ const ModelUser = require("../models/model.user");
 const ModelAdmin = require("../models/model.admin");
 const ModelAssignment = require("../models/model.assignment");
 const EmailService = require("../services");
+const ModelProduct = require("../models/model.product");
 
 
 
@@ -184,7 +185,7 @@ exports.GetAllLpos = useAsync(async (req, res) => {
                 filter.status = { $in: ["sorted", "processing"] };
                 filter.admin = user.admin;
             } else if (user?.role === "Driver") {
-                filter.status = { $in: ["sorted", "processing", "In Transit" ] };
+                filter.status = { $in: ["sorted", "processing", "In Transit"] };
                 filter.admin = user.admin;
             } else {
                 filter.user = accountID;
@@ -391,37 +392,61 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
                 });
             }
 
-            await lpo.update({deliveredStatus:true, deliveredTo})
+            await lpo.update({ deliveredStatus: true, deliveredTo })
         }
 
         if (status === "In Transit") {
-            const lpoProducts = await ModelLpoProduct.find({ lpo: id }).populate('product');
+            const lpoProducts = await ModelLpoProduct.find({ lpo: id }).populate("product");
 
             for (const lpoProduct of lpoProducts) {
                 const productId = lpoProduct.product;
-                const quantityToDeduct = lpoProduct.quantity;
+                const qtyToDeduct = Number(lpoProduct.quantity);
 
-                const batches = await ModelBatch.find({
-                    product: productId,
-                    quantity: { $gt: 0 }
-                }).sort({ createdAt: 1 });
+                const batches = await ModelBatch.find({ product: productId });
+                const totalAvailable = batches.reduce((s, b) => s + Number(b.quantity || 0), 0);
 
-                let remainingQuantity = quantityToDeduct;
+                if (qtyToDeduct > totalAvailable) {
+                    throw new errorHandle(
+                        `Insufficient stock for product ${productId}. Available: ${totalAvailable}, Required: ${qtyToDeduct}`,
+                        400
+                    );
+                }
+            }
 
-                for (const batch of batches) {
-                    if (remainingQuantity <= 0) break;
+            for (const lpoProduct of lpoProducts) {
+                const productId = lpoProduct.product;
+                const qtyToDeduct = Number(lpoProduct.quantity);
 
-                    const quantityInThisBatch = batch.quantity;
+                const batches = await ModelBatch.find({ product: productId });
 
-                    if (quantityInThisBatch >= remainingQuantity) {
-                        batch.quantity -= remainingQuantity;
-                        remainingQuantity = 0;
+                const fifoBatches = batches
+                    .filter(b => Number(b.quantity) > 0)
+                    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+                let remaining = qtyToDeduct;
+                const totalAvailable = batches.reduce((s, b) => s + Number(b.quantity || 0), 0);
+
+                for (const batch of fifoBatches) {
+                    if (remaining <= 0) break;
+
+                    const qty = Number(batch.quantity);
+
+                    if (qty >= remaining) {
+                        batch.quantity = qty - remaining;
+                        remaining = 0;
                     } else {
-                        remainingQuantity -= quantityInThisBatch;
                         batch.quantity = 0;
+                        remaining -= qty;
                     }
 
                     await batch.save();
+                }
+
+                // If deduction consumed all stock → mark product out of stock
+                if (qtyToDeduct === totalAvailable) {
+                    await ModelProduct.findByIdAndUpdate(productId, {
+                        status: "Out of Stock"
+                    });
                 }
             }
         }
@@ -921,9 +946,9 @@ exports.GetSingleInvoice = useAsync(async (req, res) => {
             return res.status(404).json(utils.JParser('Invoice not found', false, null));
         }
 
-        const lpoProducts = await ModelLpoProduct.find({lpo:invoice?.lpo?._id}).populate('product');
+        const lpoProducts = await ModelLpoProduct.find({ lpo: invoice?.lpo?._id }).populate('product');
 
-        return res.json(utils.JParser('Invoice fetched successfully', !!invoice, {...invoice, lpoProducts}));
+        return res.json(utils.JParser('Invoice fetched successfully', !!invoice, { ...invoice, lpoProducts }));
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }

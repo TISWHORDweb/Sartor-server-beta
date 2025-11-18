@@ -114,7 +114,6 @@ exports.DeleteProduct = useAsync(async (req, res) => {
     }
 });
 
-
 exports.GetAllProducts = useAsync(async (req, res) => {
     try {
         const accountType = req.userType;
@@ -135,9 +134,8 @@ exports.GetAllProducts = useAsync(async (req, res) => {
             filter = { admin: accountID };
         }
 
-        // 🔍 Add search condition
         if (search) {
-            const regex = new RegExp(search, "i"); // case-insensitive
+            const regex = new RegExp(search, "i");
             filter.$or = [
                 { productName: regex },
                 { batchNumber: regex },
@@ -148,61 +146,84 @@ exports.GetAllProducts = useAsync(async (req, res) => {
             ];
         }
 
-        // Get products
         let query = ModelProduct.find(filter).sort({ _id: -1 }).lean();
         if (limit !== null) query = query.skip(skip).limit(limit);
         const products = await query.exec();
 
         const productIds = products.map(p => p._id);
 
-        // Get batches
-        const batches = await ModelBatch.find({ product: { $in: productIds } }).lean();
+        const batches = await ModelBatch.find({
+            product: { $in: productIds }
+        }).lean();
 
-        // Suppliers
-        const supplierIds = [...new Set(batches.map(b => b.supplier).filter(Boolean))];
+        const supplierIds = [...new Set(
+            batches.filter(b => b.supplier).map(b => b.supplier)
+        )];
+
         const suppliers = await ModelSupplier.find({ _id: { $in: supplierIds } })
             .lean()
-            .then(supps =>
-                supps.reduce((acc, s) => {
+            .then(data =>
+                data.reduce((acc, s) => {
                     acc[s._id.toString()] = s;
                     return acc;
                 }, {})
             );
 
-        // Restocks
-        const restocks = await ModelRestock.find({ product: { $in: productIds } })
+        const restocks = await ModelRestock.find({
+            product: { $in: productIds }
+        })
             .sort({ creationDateTime: -1 })
             .lean();
 
         const batchesByProduct = batches.reduce((acc, batch) => {
+            if (!batch.product) return acc;
+
             const productId = batch.product.toString();
             if (!acc[productId]) acc[productId] = [];
 
             acc[productId].push({
                 ...batch,
-                supplier: batch.supplier ? suppliers[batch.supplier.toString()] : null
+                supplier: batch.supplier
+                    ? suppliers[batch.supplier.toString()] || null
+                    : null
             });
 
             return acc;
         }, {});
 
         const restocksByProduct = restocks.reduce((acc, restock) => {
+            if (!restock.product) return acc;
+
             const productId = restock.product.toString();
             if (!acc[productId]) acc[productId] = [];
-            acc[productId].push({
-                quantity: restock.quantity,
-                date: restock.creationDateTime
-            });
+
+            acc[productId].push(restock);
             return acc;
         }, {});
 
-        // Combine
         const productsWithData = products.map(product => {
             const productId = product._id.toString();
+            const productBatches = batchesByProduct[productId] || [];
+            const productRestocks = restocksByProduct[productId] || [];
+
+            const totalQuantityAvailable = productBatches.reduce((sum, b) => {
+                if (!b.quantity) return sum;
+                return sum + Number(b.quantity);
+            }, 0);
+
+            const lastRestock = productRestocks.length > 0
+                ? {
+                    quantity: productRestocks[0].quantity,
+                    date: productRestocks[0].creationDateTime
+                }
+                : null;
+
             return {
                 ...product,
-                batches: batchesByProduct[productId] || [],
-                restocks: (restocksByProduct[productId] || []).slice(0, 5)
+                batches: productBatches,
+                restocks: productRestocks.slice(0, 5),
+                lastRestock,
+                totalQuantityAvailable
             };
         });
 
@@ -223,10 +244,12 @@ exports.GetAllProducts = useAsync(async (req, res) => {
         }
 
         return res.json(response);
+
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }
 });
+
 
 
 exports.GetSingleProduct = useAsync(async (req, res) => {
@@ -812,6 +835,9 @@ exports.CreateBatch = useAsync(async (req, res) => {
         });
 
         const createdBatches = await Promise.all(batchPromises);
+        await ModelProduct.findByIdAndUpdate(data.product, {
+            status: "In-Stock"
+        });
 
         return res.json(utils.JParser('Batches created successfully', !!createdBatches, createdBatches));
     } catch (e) {
