@@ -6,7 +6,7 @@ const {bodyParser} = require('../middleware/middleware.protects');
 const express = require('express');
 const router = express.Router();
 const CoreError = require('./../core/core.error');
-const { UserRegister, UserLogin, sartorRegister } = require('../controller/controller.auth');
+const { UserRegister, UserLogin, sartorRegister, partnerPasswordReset } = require('../controller/controller.auth');
 
 /**
  * auth routes
@@ -16,6 +16,9 @@ const { UserRegister, UserLogin, sartorRegister } = require('../controller/contr
 router.post('/register', bodyParser, UserRegister);
 router.post('/sartor/register', bodyParser, sartorRegister);
 router.post('/login', bodyParser, UserLogin);
+
+//ALL
+router.post('/password-reset', bodyParser, partnerPasswordReset);
 
 /**
  * Export lastly

@@ -68,6 +68,73 @@ exports.sendLoginNotification = (data) => {
         .then(r => LOG_DEBUG ? console.log(r) : null);
 };
 
+exports.sendPasswordResetMail = (data) => {
+    const now = new Date().toLocaleString(); // local date & time
+
+    new emailTemple(data.email).who("User")
+        .body(`
+            <p>Hello ${data.name},</p>
+
+            <p>You requested a password reset for your <strong>Sartor CRM</strong> account.</p>
+
+            <p>Your temporary password has been generated. Please use it to log in and then change your password immediately.</p>
+
+            <div style="
+                background: #f8f9fb; 
+                padding: 16px; 
+                border-radius: 6px; 
+                margin: 20px 0; 
+                border-left: 4px solid #1a237e;
+            ">
+                <p style="margin: 5px 0;">
+                    <strong>Temporary Password:</strong> 
+                    <span style="font-family: monospace; font-size: 16px;">${data.tempPassword}</span>
+                </p>
+                <p style="margin: 5px 0;"><strong>Issued on:</strong> ${now}</p>
+            </div>
+
+            <p>
+                You can log in using the button below:
+            </p>
+
+            <a href="${process.env.LOGIN_URL}" style="
+                display: inline-block;
+                background-color: #1a237e;
+                color: #ffffff;
+                padding: 12px 24px;
+                border-radius: 6px;
+                text-decoration: none;
+                margin: 10px 0;
+                font-weight: bold;
+            ">
+                Log In
+            </a>
+
+            <p style="
+                font-size: 14px; 
+                color: #ef4444; 
+                background: #fef2f2; 
+                padding: 12px; 
+                border-radius: 6px; 
+                border-left: 4px solid #ef4444;
+            ">
+                <strong>Important:</strong> For your security, make sure to update this temporary password after your next login.
+            </p>
+
+            <p>If you did not request this change, please contact support immediately.</p>
+
+            <p>Need help? Reach us at 
+            <a href="mailto:${process.env.EMAIL_SUPPORT}" style="color: #1a237e;">
+                ${process.env.EMAIL_SUPPORT}
+            </a>.</p>
+
+            <p>Stay secure,<br><strong>The Sartor CRM Team</strong></p>
+        `)
+        .subject(`🔐 Password Reset Request – Your Temporary Password`)
+        .send()
+        .then(r => LOG_DEBUG ? console.log(r) : null);
+};
+
 exports.sendTaskAssignmentNotification = (data) => {
     const dueDate = data.dueDate ? new Date(data.dueDate).toLocaleDateString() : 'Not specified';
 

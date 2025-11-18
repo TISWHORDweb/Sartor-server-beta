@@ -35,6 +35,10 @@ const sartorSchema = new mongoose.Schema({
         type: String,
         default: "sartor"
     },
+    blocked: {
+        type: Boolean,
+        default: false,
+    },
     isDeleted: {
         type: Boolean,
         default: false

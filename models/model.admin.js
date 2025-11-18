@@ -43,6 +43,10 @@ const adminSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     },
+    blocked: {
+        type: Boolean,
+        default: false,
+    },
     role: {
         type: String,
         default: "Super-Admin"

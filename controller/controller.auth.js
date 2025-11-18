@@ -18,6 +18,7 @@ const ModelAdmin = require('../models/model.admin')
 const ModelPermission = require('../models/model.permission')
 const Joi = require('joi')
 const ModelSartor = require('../models/model.sartor')
+const { generatePasswordWithDate } = require('../core/core.notify')
 
 
 
@@ -313,45 +314,63 @@ exports.PasswordUpdate = useAsync(async (req, res, next) => {
     }
 });
 
-// exports.userEmailVerify = useAsync(async (req, res) => {
-//     try {
+exports.partnerPasswordReset = useAsync(async (req, res, next) => {
 
-//         const user = await ModelPerson.findOne({ email: req.body.email });
+    let message = "Password reset"
+    try {
 
-//         if (user) {
-//             return res.json(utils.JParser('Email taken already', false, []));
-//         } else {
-//             return res.json(utils.JParser('Email available', true, []));
-//         }
+        let account;
+        let message;
+        let accountType;
 
-//     } catch (e) {
-//         throw new errorHandle(e.message, 400)
-//     }
-// })
+        const schema = Joi.object({
+            email: Joi.string().email({ minDomainSegments: 2 }).required(),
+        })
+        const data = await schema.validateAsync(req.body)
+        const email = data.email
 
+        const user = await ModelUser.findOne({ email });
+        const admin = await ModelAdmin.findOne({ email });
+        const sartor = await ModelSartor.findOne({ email });
 
-// exports.updatePassword = useAsync(async (req, res) => {
+        if (user) {
+            account = user; accountType = "user";
+        } else if (admin) {
+            account = admin; accountType = "admin";
+        } else if (sartor) {
+            account = sartor; accountType = "sartor";
+        } else {
+            return res.status(400).json(utils.JParser("Unable to reset password, Invalid email", false, []));
+        }
 
-//     const user = await ModelPerson.findOne({ email: req.body.email });
+        if (account) {
+            const pwd = await generatePasswordWithDate(account.fullName)
+            message = "Password reset successfully, check your email copy the password to login"
+            // generate token and login info
+            const newToken = sha1(email + new Date());
+            const lastLogin = CryptoJS.AES.encrypt(JSON.stringify(new Date()), process.env.SECRET_KEY).toString();
+            const online = new Date();
+            const password = await bcrypt.hash(pwd, 13)
+            
+            // update the right model
+            const Model = accountType === "user" ? ModelUser : accountType === "admin" ? ModelAdmin : ModelSartor
+            await Model.updateOne(
+                { _id: account._id },
+                {
+                    $set: {
+                        token: newToken,
+                        lastLogin,
+                        password,
+                        online
+                    }
+                }
+            );
 
-//     try {
-//         if (!req.body.email) return res.status(400).json({ msg: 'provide the id ?', status: 400 })
-
-//         if (!user) {
-//             return res.json(utils.JParser('No User is registered with this id', true, []));
-//         }
-
-//         const NewPassword = await bcrypt.hash(req.body.password, 13)
-//         await ModelPerson.updateOne({ email: req.body.email }, { password: NewPassword }).then(async () => {
-//             // const New = await ModelPerson.findOne({ email: req.body.email });
-//             return res.json(utils.JParser('Password changed Successfully ', true, []));
-
-//         }).catch((err) => {
-//             res.send(err)
-//         })
-
-//     } catch (e) {
-//         throw new errorHandle(e.message, 400)
-//     }
-
-// })
+            //sending email
+            EmailService.sendPasswordResetMail({ email: account.email, name: account.fullName, tempPassword: pwd })
+        }
+        res.json(utils.JParser(message, !!account, null));
+    } catch (e) {
+        throw new errorHandle(e.message, 400);
+    }
+});
