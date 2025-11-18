@@ -30,7 +30,7 @@ const productSchema = new mongoose.Schema({
     lastPriceUpdate: { type: Date },
     status: {
         type: String,
-        enum: ["In-Stock", "Out of Stock"],
+        enum: ["In-Stock", "Out of Stock", "Pending"],
         default: "Pending"
     },
     isDeleted: {
