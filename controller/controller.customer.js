@@ -179,8 +179,9 @@ exports.GetAllLpos = useAsync(async (req, res) => {
         const skip = req.query.limit === "all" ? 0 : (page - 1) * limit;
 
         let filter = {};
+
         if (accountType === "user") {
-            const user = ModelUser.findById(accountID)
+            const user = await ModelUser.findById(accountID);
             if (user?.role === "Inventory Manager") {
                 filter.status = { $in: ["sorted", "processing"] };
                 filter.admin = user.admin;
@@ -194,61 +195,61 @@ exports.GetAllLpos = useAsync(async (req, res) => {
             filter.admin = accountID;
         }
 
-        // 🔎 Revamped search
         const search = req.query.search ? req.query.search.trim() : null;
         if (search) {
             filter.$or = [
-                { lpoId: { $regex: search, $options: "i" } },   // match LPO ID
-                { status: { $regex: search, $options: "i" } },  // match status
-                { terms: { $regex: search, $options: "i" } },   // match terms
+                { lpoId: { $regex: search, $options: "i" } },
+                { status: { $regex: search, $options: "i" } },
+                { terms: { $regex: search, $options: "i" } },
             ];
         }
 
-
-        let query = ModelLpo.find(filter).sort({ _id: -1 })
+        let query = ModelLpo.find(filter)
+            .sort({ _id: -1 })
             .populate("user", "_id fullName")
             .populate("admin", "_id fullName")
-            .populate("lead") // can extend with fields
+            .populate("lead")
             .lean();
 
         if (limit !== null) {
-            query.skip(skip).limit(limit);
+            query = query.skip(skip).limit(limit);
         }
 
         const lpos = await query.exec();
         const lpoIds = lpos.map(lpo => lpo._id);
 
-        const products = await ModelLpoProduct.find({ lpo: { $in: lpoIds } })
-            .populate("product");
+        const lpoProducts = await ModelLpoProduct.find({ lpo: { $in: lpoIds } })
+            .populate("product")
+            .lean();
 
-        const productsByLpoId = products.reduce((acc, product) => {
-            if (!product.lpo) return acc;
-            if (!acc[product.lpo]) acc[product.lpo] = [];
+        const productsByLpo = lpoProducts.reduce((acc, lp) => {
+            if (!lp.lpo) return acc;
+            if (!acc[lp.lpo]) acc[lp.lpo] = [];
 
-            const quantity = parseFloat(product.quantity) || 0;
-            const unitPrice = (product.product && !isNaN(parseFloat(product.product.price)))
-                ? parseFloat(product.product.price)
-                : 0;
+            const quantity = Number(lp.quantity) || 0;
+            const price = Number(lp.product?.price) || 0;
+            const amount = quantity * price;
 
-            const productAmount = unitPrice * quantity;
-
-            acc[product.lpo].push({
-                ...product.toObject(),
-                amount: productAmount,
-                quantity
+            acc[lp.lpo].push({
+                ...lp,
+                quantity,
+                price,
+                amount
             });
 
             return acc;
         }, {});
 
         const lposWithProducts = lpos.map(lpo => {
-            const lpoProducts = productsByLpoId[lpo._id] || [];
-            const totalAmount = lpoProducts.reduce((sum, product) => sum + (product.amount || 0), 0);
+            const lpoProducts = productsByLpo[lpo._id] || [];
+            const totalAmount = lpoProducts.reduce((sum, p) => sum + p.amount, 0);
+            const totalQuantity = lpoProducts.reduce((sum, p) => sum + p.quantity, 0);
 
             return {
                 ...lpo,
-                products: lpoProducts,
-                totalAmount: parseFloat(totalAmount.toFixed(2))
+                // products: lpoProducts,
+                totalAmount: parseFloat(totalAmount.toFixed(2)),
+                totalQuantity
             };
         });
 
@@ -265,11 +266,11 @@ exports.GetAllLpos = useAsync(async (req, res) => {
         }
 
         return res.json(response);
+
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }
 });
-
 
 
 exports.GetSingleLpo = useAsync(async (req, res) => {
@@ -279,21 +280,21 @@ exports.GetSingleLpo = useAsync(async (req, res) => {
         const lpo = await ModelLpo.findById(id).lean()
             .populate("user", "_id fullName")
             .populate("admin", "_id fullName")
-            .populate('lead');
+            .populate("lead");
 
         if (!lpo) {
             return res.status(404).json(utils.JParser('LPO not found', false, null));
         }
 
-        const products = await ModelLpoProduct.find({ lpo: id }).populate('product');
+        const products = await ModelLpoProduct.find({ lpo: id }).populate('product').lean();
 
         const processedProducts = products.map(product => {
-            const quantity = parseFloat(product.quantity) || 0;
-            const unitPrice = (product.product?.unitPrice) ? parseFloat(product.product.unitPrice) : 0;
-            const amount = unitPrice * quantity;
+            const quantity = Number(product.quantity) || 0;
+            const unitPrice = Number(product.product?.unitPrice) || 0;
+            const amount = quantity * unitPrice;
 
             return {
-                ...product.toObject(),
+                ...product,
                 quantity,
                 unitPrice,
                 amount: parseFloat(amount.toFixed(2))
@@ -301,17 +302,20 @@ exports.GetSingleLpo = useAsync(async (req, res) => {
         });
 
         const totalAmount = processedProducts.reduce((sum, product) => sum + product.amount, 0);
+        const totalQuantity = processedProducts.reduce((sum, product) => sum + product.quantity, 0);
 
         return res.json(utils.JParser('LPO fetched successfully', true, {
             ...lpo,
             products: processedProducts,
-            totalAmount: parseFloat(totalAmount.toFixed(2))
+            totalAmount: parseFloat(totalAmount.toFixed(2)),
+            totalQuantity
         }));
 
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }
 });
+
 
 
 exports.updateLPOStatus = useAsync(async (req, res) => {
@@ -352,7 +356,7 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
 
         if (status === "Processing") {
             if (lpo?.lead?.email) {
-                deliveryCode = generateDeliveryCode()
+                deliveryCode = await generateDeliveryCode()
 
                 const lpoData = {
                     createdAt: lpo.createdAt,

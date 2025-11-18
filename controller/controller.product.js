@@ -169,7 +169,7 @@ exports.GetAllProducts = useAsync(async (req, res) => {
                 }, {})
             );
 
-        const restocks = await ModelRestock.find({
+        const restocks = await ModelRestockProduct.find({
             product: { $in: productIds }
         })
             .sort({ creationDateTime: -1 })
@@ -212,16 +212,14 @@ exports.GetAllProducts = useAsync(async (req, res) => {
             }, 0);
 
             const lastRestock = productRestocks.length > 0
-                ? {
-                    quantity: productRestocks[0].quantity,
-                    date: productRestocks[0].creationDateTime
-                }
+                ? 
+                    productRestocks[0].creationDateTime
                 : null;
 
             return {
                 ...product,
                 batches: productBatches,
-                restocks: productRestocks.slice(0, 5),
+                // restocks: productRestocks.slice(0, 5),
                 lastRestock,
                 totalQuantityAvailable
             };
@@ -835,7 +833,7 @@ exports.CreateBatch = useAsync(async (req, res) => {
         });
 
         const createdBatches = await Promise.all(batchPromises);
-        await ModelProduct.findByIdAndUpdate(data.product, {
+        await ModelProduct.findByIdAndUpdate(validator.product, {
             status: "In-Stock"
         });
 
