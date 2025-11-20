@@ -34,7 +34,7 @@ global.console.log = function (...args) {
 // });
 
 app.use(cors({
-    origin: ['https://crm.sartor.ng', 'https://crm.sartor.ng', 'http://localhost:5173', 'http://localhost:5174', 'https://sartor-crm.onrender.com'], 
+    origin: ['https://crm.sartor.ng', 'http://localhost:5173', 'http://localhost:5174', 'https://sartor-crm.onrender.com', 'https://verify-sartor.vercel.app'], 
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 's-token']

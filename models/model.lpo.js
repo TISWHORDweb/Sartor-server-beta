@@ -8,7 +8,7 @@ const lpoSchema = new mongoose.Schema({
     },
     terms: {
         type: String,
-        enum: ["Payment On Delivery", "⁠Full Payment after 70% stock sold", "⁠Payment 2 weeks after delivery", "SOR", "Sales On Delivery"],  // specifies allowed values
+        enum: ["Payment On Delivery", "⁠Full Payment after 70% stock sold", "⁠Payment 2 weeks after delivery", "Sales Or Returns"],  // specifies allowed values
         default: "Payment On Delivery"                    // default value if none provided
     },
     status: {
