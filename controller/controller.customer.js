@@ -331,7 +331,7 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
         if (!lpo) {
             throw new errorHandle('LPO not found', 404);
         }
-        const oldStatus = lpo.status
+        const oldStatus = lpo.status || 'Unknown'
         // Check stock availability before any updates if status is "In Transit"
         if (status === "In Transit") {
             const lpoProducts = await ModelLpoProduct.find({ lpo: id }).populate('product');
@@ -456,6 +456,7 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
         }
 
         // Prepare response
+        let responseMessage = 'LPO status updated successfully';
         let response = {
             updatedLPO
         };
@@ -463,13 +464,13 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
         if (status === "Delivered" && !existingCustomer) {
             const customer = await ModelCustomer.findOne({ lead: lpo.lead });
             response.customer = customer;
-            response.message += ' and customer created';
+            responseMessage = 'LPO status updated successfully and customer created';
         }
 
-        const message = `📋 LPO Status Updated: ${oldStatus} → ${status}`;
+        const message = `📋 LPO Status Updated: ${oldStatus} → ${status || 'Unknown'}`;
         await generateNotification({ userId: lpo.user, message, type: 4 })
 
-        return res.json(utils.JParser(response.message, true, response));
+        return res.json(utils.JParser(responseMessage, true, response));
 
     } catch (e) {
         throw new errorHandle(e.message, 400);

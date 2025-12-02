@@ -12,7 +12,7 @@ const { getUser, deleteUser, singleUser, editUser, allUser, createUser, GetDashb
 const { deleteTasks, CreateTask, editTask } = require('../controller/controller.task');
 const { useAsync } = require('../core');
 const { CreateLead, UpdateLead, DeleteLead, GetAllLeads, GetSingleLead, CreateLpo, UpdateLpo, DeleteLpo, GetAllLpos, GetSingleLpo, GetAllInvoices, GetSingleInvoice, DeleteInvoice, changeInvoiceStatus, updateLeadStatus, GetAllCustomer, UpdateCustomer, DeleteCustomer, GetCustomer, updateLPOStatus, GetAllUserLeads, GetAllUserLpos, GetAllUserCustomer, GetAllUserInvoices, GetAllUserCommision, UpdateLeadContact } = require('../controller/controller.customer');
-const { CreateSupplier, UpdateSupplier, DeleteSupplier, GetAllSuppliers, GetSingleSupplier, CreateProduct, UpdateProduct, DeleteProduct, GetAllProducts, GetSingleProduct, CreateRestock, UpdateRestock, DeleteRestock, GetAllRestocks, GetSingleRestock, CreateBatch, GetAllBatches, GetSingleBatch, UpdateBatch, DeleteBatch, GetAllProductBatch, calculateProductPricing, updateProductPrice, UpdateRestockProduct } = require('../controller/controller.product');
+const { CreateSupplier, UpdateSupplier, DeleteSupplier, GetAllSuppliers, GetSingleSupplier, CreateProduct, UpdateProduct, DeleteProduct, GetAllProducts, GetSingleProduct, CreateRestock, UpdateRestock, DeleteRestock, GetAllRestocks, GetSingleRestock, CreateBatch, GetAllBatches, GetSingleBatch, UpdateBatch, DeleteBatch, GetAllProductBatch, calculateProductPricing, updateProductPrice, UpdateRestockProduct, CreateStock, UpdateStock, DeleteStock, GetAllStocks, GetSingleStock } = require('../controller/controller.product');
 const { uploadLabel, labelTrainWebhook, CreateLabel, GetAllLabels, GetLabel, UpdateLabel, DeleteLabel, verifyLabel } = require('../controller/controller.label');
 const { upload } = require('../core/core.utils');
 const { universalSearch } = require('../controller/controller.search');
@@ -103,6 +103,13 @@ router.put('/batch/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(
 router.delete('/batch/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteBatch );
 router.get('/batchs', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllBatches );
 router.get('/batch/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleBatch );
+
+//STOCK
+router.post('/stock', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), CreateStock );
+router.put('/stock/edit/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), UpdateStock );
+router.delete('/stock/delete/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), DeleteStock );
+router.get('/stocks', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetAllStocks );
+router.get('/stock/:id', useAsync(authMiddleware), useAsync(roleMiddleware(['user'])), GetSingleStock );
 
 //LABEL
 router.post('/label/upload', upload.single('images'), uploadLabel );

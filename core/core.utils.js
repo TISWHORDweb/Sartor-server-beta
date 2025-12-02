@@ -8,6 +8,7 @@ const ModelLpo = require("../models/model.lpo");
 const ModelNotification = require("../models/model.notification");
 const ModelSartor = require("../models/model.sartor");
 const ModelUser = require("../models/model.user");
+const ModelStocks = require("../models/model.stocks");
 const multer = require('multer');
 const path = require('path');
 
@@ -66,6 +67,8 @@ exports.genID = async (id) => {
         lastData = await ModelBatch.findOne().sort({ batchNumber: -1 }).limit(1);
     } else if (id === 7) {
         lastData = await ModelLpo.findOne().sort({ lpoId: -1 }).limit(1);
+    } else if (id === 8) {
+        lastData = await ModelStocks.findOne().sort({ ID: -1 }).limit(1);
     }
 
     let lastNumber = 0;
@@ -99,10 +102,15 @@ exports.genID = async (id) => {
             const parts = lastData.lpoId.split('-');
             lastNumber = parseInt(parts[1]) || 0;
         }
+    } else if (id === 8) {
+        if (lastData && lastData.ID) {
+            const parts = lastData.ID.split('-');
+            lastNumber = parseInt(parts[1]) || 0;
+        }
     }
 
     // 3. Generate the next ID
-    const prefix = id === 1 || id === 4 ? "SMO" : id === 6 ? "BCH" : id === 3 ? "CUS" : id === 5 ? "INV" : "LPO"
+    const prefix = id === 1 || id === 4 ? "SMO" : id === 6 ? "BCH" : id === 3 ? "CUS" : id === 5 ? "INV" : id === 7 ? "LPO" : "STO"
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -110,6 +118,30 @@ exports.genID = async (id) => {
     const nextNumber = (lastNumber + 1).toString().padStart(2, '0');
 
     return `${prefix}${dateCode}-${nextNumber}`;
+}
+
+// Generate Stock ID in format: sto001-01 (where 001 is YYMM and 01 is sequential)
+exports.genStockID = async () => {
+    // Find the last stock with highest ID
+    const lastStock = await ModelStocks.findOne().sort({ ID: -1 }).limit(1);
+    
+    let lastNumber = 0;
+    if (lastStock && lastStock.ID) {
+        // Extract the sequential number from format like "sto2401-01"
+        const parts = lastStock.ID.split('-');
+        if (parts.length === 2) {
+            lastNumber = parseInt(parts[1]) || 0;
+        }
+    }
+
+    // Generate the next ID
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const dateCode = `${year}${month}`;
+    const nextNumber = (lastNumber + 1).toString().padStart(2, '0');
+
+    return `sto${dateCode}-${nextNumber}`;
 }
 
 const storage = multer.diskStorage({

@@ -5,10 +5,12 @@ const ModelProduct = require("../models/model.product");
 const Joi = require("joi");
 const ModelRestock = require("../models/model.restock");
 const ModelSupplier = require("../models/model.supplier");
-const { genID } = require("../core/core.utils");
+const { genID, genStockID } = require("../core/core.utils");
 const ModelBatch = require("../models/model.batch");
 const ModelUser = require("../models/model.user");
 const ModelRestockProduct = require("../models/model.restockProduct");
+const ModelStocks = require("../models/model.stocks");
+const ModelCustomer = require("../models/model.customer");
 
 
 exports.CreateProduct = useAsync(async (req, res) => {
@@ -1097,5 +1099,237 @@ exports.updateProductPrice = useAsync(async (req, res) => {
 
     } catch (e) {
         throw new errorHandle(e.message, 400);
+    }
+});
+
+//////////////////////////////////////////////////////////////////////////////////////
+////STOCK ROUTES
+//////////////////////////////////////////////////////////////////////////////////////
+
+exports.CreateStock = useAsync(async (req, res) => {
+    try {
+        const accountType = req.userType;
+        const accountID = req.userId;
+
+        const schema = Joi.object({
+            contactNumber: Joi.string().optional(),
+            address: Joi.string().optional(),
+            notes: Joi.string().optional(),
+            level: Joi.string().optional(),
+            lastStock: Joi.string().optional(),
+            status: Joi.string().valid("Low", "Medium", "High").optional(),
+            product: Joi.string().required(),
+            customer: Joi.string().required()
+        });
+
+        const validator = await schema.validateAsync(req.body);
+
+        let adminId;
+        if (accountType === "user") {
+            const user = await ModelUser.findOne({ _id: accountID }).lean();
+            if (!user) {
+                return res.json(utils.JParser("Invalid user, Try again later", false, []));
+            }
+            adminId = user.admin;
+        } else {
+            adminId = accountID;
+        }
+
+        // Generate stock ID
+        const stockId = await genStockID();
+
+        // Verify product exists
+        const product = await ModelProduct.findById(validator.product);
+        if (!product) {
+            return res.status(404).json(utils.JParser('Product not found', false, null));
+        }
+
+        // Verify customer exists
+        const customer = await ModelCustomer.findById(validator.customer);
+        if (!customer) {
+            return res.status(404).json(utils.JParser('Customer not found', false, null));
+        }
+
+        const stock = await ModelStocks.create({
+            ...validator,
+            ID: stockId,
+            admin: adminId
+        });
+
+        return res.json(utils.JParser('Stock created successfully', !!stock, stock));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+exports.UpdateStock = useAsync(async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const schema = Joi.object({
+            contactNumber: Joi.string().optional(),
+            address: Joi.string().optional(),
+            notes: Joi.string().optional(),
+            level: Joi.string().optional(),
+            lastStock: Joi.string().optional(),
+            status: Joi.string().valid("Low", "Medium", "High").optional(),
+            product: Joi.string().optional(),
+            customer: Joi.string().optional()
+        });
+
+        const validator = await schema.validateAsync(req.body);
+        validator.updated_at = Date.now();
+
+        // If product is being updated, verify it exists
+        if (validator.product) {
+            const product = await ModelProduct.findById(validator.product);
+            if (!product) {
+                return res.status(404).json(utils.JParser('Product not found', false, null));
+            }
+        }
+
+        // If customer is being updated, verify it exists
+        if (validator.customer) {
+            const customer = await ModelCustomer.findById(validator.customer);
+            if (!customer) {
+                return res.status(404).json(utils.JParser('Customer not found', false, null));
+            }
+        }
+
+        const updatedStock = await ModelStocks.findByIdAndUpdate(id, validator, { new: true })
+            .populate('product')
+            .populate('customer')
+            .populate('admin');
+
+        if (!updatedStock) {
+            return res.status(404).json(utils.JParser('Stock not found', false, null));
+        }
+
+        return res.json(utils.JParser('Stock updated successfully', true, updatedStock));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+exports.DeleteStock = useAsync(async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const deletedStock = await ModelStocks.findByIdAndUpdate(
+            id,
+            {
+                isDeleted: true,
+                updated_at: Date.now()
+            },
+            { new: true }
+        );
+
+        if (!deletedStock) {
+            return res.status(404).json(utils.JParser('Stock not found', false, null));
+        }
+
+        return res.json(utils.JParser('Stock deleted successfully', true, deletedStock));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+exports.GetAllStocks = useAsync(async (req, res) => {
+    try {
+        const accountType = req.userType;
+        const accountID = req.userId;
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+        const search = req.query.search ? req.query.search.trim() : null;
+
+        let filter = {};
+
+        if (accountType === "user") {
+            const user = await ModelUser.findOne({ _id: accountID });
+            if (!user) {
+                return res.status(400).json(utils.JParser('Invalid user, Try again later', false, []));
+            }
+            filter = { admin: user.admin };
+        } else if (accountType === "admin") {
+            filter = { admin: accountID };
+        }
+
+        // Add product filter if provided
+        if (req.query.product) {
+            filter.product = req.query.product;
+        }
+
+        // Add customer filter if provided
+        if (req.query.customer) {
+            filter.customer = req.query.customer;
+        }
+
+        // Add status filter if provided
+        if (req.query.status) {
+            filter.status = req.query.status;
+        }
+
+        // Search filter
+        if (search) {
+            const regex = new RegExp(search, "i");
+            filter.$or = [
+                { ID: regex },
+                { contactNumber: regex },
+                { address: regex },
+                { notes: regex },
+                { level: regex },
+                { lastStock: regex },
+                { status: regex }
+            ];
+        }
+
+        let query = ModelStocks.find(filter)
+            .populate('product')
+            .populate('customer')
+            .populate('admin')
+            .sort({ _id: -1 })
+            .lean();
+
+        if (limit !== null) query = query.skip(skip).limit(limit);
+
+        const stocks = await query.exec();
+
+        const response = utils.JParser('Stocks fetched successfully', true, { data: stocks });
+
+        if (limit !== null) {
+            const totalStocks = await ModelStocks.countDocuments(filter);
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalStocks / limit),
+                totalStocks,
+                limit
+            };
+        }
+
+        return res.json(response);
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+exports.GetSingleStock = useAsync(async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const stock = await ModelStocks.findById(id)
+            .populate('product')
+            .populate('customer')
+            .populate('admin')
+            .lean();
+
+        if (!stock) {
+            return res.status(404).json(utils.JParser('Stock not found', false, null));
+        }
+
+        return res.json(utils.JParser('Stock fetched successfully', true, stock));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
     }
 });
