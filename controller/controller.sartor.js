@@ -136,7 +136,7 @@ exports.allCompanys = useAsync(async (req, res) => {
       ModelProduct.find({ admin: { $in: admins.map((a) => a._id) } }).lean(),
       ModelLpo.find({ admin: { $in: admins.map((a) => a._id) } }).lean(),
       ModelLead.find({ admin: { $in: admins.map((a) => a._id) } }).lean(),
-      ModelUser.find({ admin: { $in: admins.map((a) => a._id) } }).lean(),
+      ModelUser.find({ admin: { $in: admins.map((a) => a._id) } }).select('-password -token').lean(),
     ]);
 
     const data = admins.map((admin) => ({
@@ -193,7 +193,7 @@ exports.getSingleCompany = useAsync(async (req, res) => {
       ModelProduct.find({ admin: id }).lean(),
       ModelLpo.find({ admin: id }).lean(),
       ModelLead.find({ admin: id }).lean(),
-      ModelUser.find({ admin: id }).lean(),
+      ModelUser.find({ admin: id }).select('-password -token').lean(),
     ]);
 
     const lpoIds = lpos.map(lpo => lpo._id);

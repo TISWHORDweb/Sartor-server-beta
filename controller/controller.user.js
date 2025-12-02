@@ -102,7 +102,7 @@ exports.getUser = useAsync(async (req, res) => {
 
         const userId = req.userId
 
-        const user = await ModelUser.findOne({ _id: userId });
+        const user = await ModelUser.findOne({ _id: userId }).select('-password -token');
         return res.json(utils.JParser('User fetch successfully', !!user, user));
     } catch (e) {
         throw new errorHandle(e.message, 400)
@@ -114,7 +114,7 @@ exports.singleUser = useAsync(async (req, res) => {
     try {
 
         const userId = req.params.id
-        const user = await ModelUser.findOne({ _id: userId });
+        const user = await ModelUser.findOne({ _id: userId }).select('-password -token');
         return res.json(utils.JParser('User fetch successfully', !!user, user));
     } catch (e) {
         throw new errorHandle(e.message, 400)
@@ -661,7 +661,7 @@ exports.GetAllPermissions = useAsync(async (req, res) => {
         const limit = req.query.limit === "all" ? null : parseInt(req.query.limit) || 10;
         const skip = req.query.limit === "all" ? 0 : (page - 1) * limit;
 
-        const query = ModelPermission.find().populate("user").sort({ _id: -1 }).lean();
+        const query = ModelPermission.find().populate("user", "-password -token").sort({ _id: -1 }).lean();
         if (limit !== null) query.skip(skip).limit(limit);
 
         const permissions = await query.exec();
@@ -688,7 +688,7 @@ exports.GetPermission = useAsync(async (req, res) => {
     try {
         const accountID = req.userId;
         const option = req.params.id ? { _id: req.params.id } : { userId: accountID }
-        const permission = await ModelPermission.findOne(option).populate("user").lean();
+        const permission = await ModelPermission.findOne(option).populate("user", "-password -token").lean();
         if (!permission) throw new errorHandle("Permission not found", 404);
         return res.json(utils.JParser("Permission fetched successfully", true, permission));
     } catch (e) {
@@ -983,7 +983,7 @@ exports.GetUsersByAssignmentType = useAsync(async (req, res) => {
             userFilter.admin = adminId;
         }
 
-        const query = ModelUser.find(userFilter).sort({ _id: -1 }).lean();
+        const query = ModelUser.find(userFilter).select('-password -token').sort({ _id: -1 }).lean();
         query.skip(skip).limit(limit).sort({ fullName: 1 });
 
         const users = await query.exec();

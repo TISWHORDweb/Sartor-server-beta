@@ -42,6 +42,14 @@ const stocksSchema = new mongoose.Schema({
         ref: 'model-admin',
         required: true
     },
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'model-user',
+    },
+    price: {
+        type: Number,
+        min: 0
+    },
     creationDateTime: { type: Number, default: () => Date.now() },
     updated_at: { type: Number, default: () => Date.now() }
 })

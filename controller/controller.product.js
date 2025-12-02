@@ -11,6 +11,7 @@ const ModelUser = require("../models/model.user");
 const ModelRestockProduct = require("../models/model.restockProduct");
 const ModelStocks = require("../models/model.stocks");
 const ModelCustomer = require("../models/model.customer");
+const ModelTask = require("../models/model.task");
 
 
 exports.CreateProduct = useAsync(async (req, res) => {
@@ -1118,6 +1119,7 @@ exports.CreateStock = useAsync(async (req, res) => {
             level: Joi.string().optional(),
             lastStock: Joi.string().optional(),
             status: Joi.string().valid("Low", "Medium", "High").optional(),
+            price: Joi.number().min(0).optional(),
             product: Joi.string().required(),
             customer: Joi.string().required()
         });
@@ -1125,12 +1127,14 @@ exports.CreateStock = useAsync(async (req, res) => {
         const validator = await schema.validateAsync(req.body);
 
         let adminId;
+        let userId = null;
         if (accountType === "user") {
             const user = await ModelUser.findOne({ _id: accountID }).lean();
             if (!user) {
                 return res.json(utils.JParser("Invalid user, Try again later", false, []));
             }
             adminId = user.admin;
+            userId = accountID; // Set user ID for merchandiser
         } else {
             adminId = accountID;
         }
@@ -1153,7 +1157,8 @@ exports.CreateStock = useAsync(async (req, res) => {
         const stock = await ModelStocks.create({
             ...validator,
             ID: stockId,
-            admin: adminId
+            admin: adminId,
+            user: userId // Include user ID if it's a merchandiser
         });
 
         return res.json(utils.JParser('Stock created successfully', !!stock, stock));
@@ -1173,6 +1178,7 @@ exports.UpdateStock = useAsync(async (req, res) => {
             level: Joi.string().optional(),
             lastStock: Joi.string().optional(),
             status: Joi.string().valid("Low", "Medium", "High").optional(),
+            price: Joi.number().min(0).optional(),
             product: Joi.string().optional(),
             customer: Joi.string().optional()
         });
@@ -1197,9 +1203,6 @@ exports.UpdateStock = useAsync(async (req, res) => {
         }
 
         const updatedStock = await ModelStocks.findByIdAndUpdate(id, validator, { new: true })
-            .populate('product')
-            .populate('customer')
-            .populate('admin');
 
         if (!updatedStock) {
             return res.status(404).json(utils.JParser('Stock not found', false, null));
@@ -1288,7 +1291,8 @@ exports.GetAllStocks = useAsync(async (req, res) => {
         let query = ModelStocks.find(filter)
             .populate('product')
             .populate('customer')
-            .populate('admin')
+            .populate('admin', '-password -token')
+            .populate('user', '-password -token')
             .sort({ _id: -1 })
             .lean();
 
@@ -1321,7 +1325,8 @@ exports.GetSingleStock = useAsync(async (req, res) => {
         const stock = await ModelStocks.findById(id)
             .populate('product')
             .populate('customer')
-            .populate('admin')
+            .populate('admin', '-password -token')
+            .populate('user', '-password -token')
             .lean();
 
         if (!stock) {
@@ -1329,6 +1334,218 @@ exports.GetSingleStock = useAsync(async (req, res) => {
         }
 
         return res.json(utils.JParser('Stock fetched successfully', true, stock));
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+exports.GetUserStocks = useAsync(async (req, res) => {
+    try {
+        const accountID = req.userId;
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+        const search = req.query.search ? req.query.search.trim() : null;
+
+        // Filter by user ID (merchandiser)
+        let filter = { user: accountID };
+
+        // Add product filter if provided
+        if (req.query.product) {
+            filter.product = req.query.product;
+        }
+
+        // Add customer filter if provided
+        if (req.query.customer) {
+            filter.customer = req.query.customer;
+        }
+
+        // Add status filter if provided
+        if (req.query.status) {
+            filter.status = req.query.status;
+        }
+
+        // Search filter
+        if (search) {
+            const regex = new RegExp(search, "i");
+            filter.$or = [
+                { ID: regex },
+                { contactNumber: regex },
+                { address: regex },
+                { notes: regex },
+                { level: regex },
+                { lastStock: regex },
+                { status: regex }
+            ];
+        }
+
+        let query = ModelStocks.find(filter)
+            .populate('product')
+            .populate('customer')
+            .populate('admin', '-password -token')
+            .populate('user', '-password -token')
+            .sort({ _id: -1 })
+            .lean();
+
+        if (limit !== null) query = query.skip(skip).limit(limit);
+
+        const stocks = await query.exec();
+
+        const response = utils.JParser('User stocks fetched successfully', true, { data: stocks });
+
+        if (limit !== null) {
+            const totalStocks = await ModelStocks.countDocuments(filter);
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalStocks / limit),
+                totalStocks,
+                limit
+            };
+        }
+
+        return res.json(response);
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+exports.GetCompanyStocks = useAsync(async (req, res) => {
+    try {
+        const accountType = req.userType;
+        const accountID = req.userId;
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = req.query.limit === 'all' ? null : parseInt(req.query.limit) || 10;
+        const skip = req.query.limit === 'all' ? 0 : (page - 1) * limit;
+        const search = req.query.search ? req.query.search.trim() : null;
+
+        let filter = {};
+
+        // Get admin ID based on account type
+        if (accountType === "user") {
+            const user = await ModelUser.findOne({ _id: accountID });
+            if (!user) {
+                return res.status(400).json(utils.JParser('Invalid user, Try again later', false, []));
+            }
+            filter = { admin: user.admin };
+        } else if (accountType === "admin") {
+            filter = { admin: accountID };
+        }
+
+        // Add product filter if provided
+        if (req.query.product) {
+            filter.product = req.query.product;
+        }
+
+        // Add customer filter if provided
+        if (req.query.customer) {
+            filter.customer = req.query.customer;
+        }
+
+        // Add status filter if provided
+        if (req.query.status) {
+            filter.status = req.query.status;
+        }
+
+        // Add user filter if provided (to filter by specific merchandiser)
+        if (req.query.user) {
+            filter.user = req.query.user;
+        }
+
+        // Search filter
+        if (search) {
+            const regex = new RegExp(search, "i");
+            filter.$or = [
+                { ID: regex },
+                { contactNumber: regex },
+                { address: regex },
+                { notes: regex },
+                { level: regex },
+                { lastStock: regex },
+                { status: regex }
+            ];
+        }
+
+        let query = ModelStocks.find(filter)
+            .populate('product')
+            .populate('customer')
+            .populate('admin', '-password -token')
+            .populate('user', '-password -token')
+            .sort({ _id: -1 })
+            .lean();
+
+        if (limit !== null) query = query.skip(skip).limit(limit);
+
+        const stocks = await query.exec();
+
+        const response = utils.JParser('Company stocks fetched successfully', true, { data: stocks });
+
+        if (limit !== null) {
+            const totalStocks = await ModelStocks.countDocuments(filter);
+            response.data.pagination = {
+                currentPage: page,
+                totalPages: Math.ceil(totalStocks / limit),
+                totalStocks,
+                limit
+            };
+        }
+
+        return res.json(response);
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
+
+exports.GetMerchandiserOverview = useAsync(async (req, res) => {
+    try {
+        const accountID = req.userId;
+
+        // Verify user exists
+        const user = await ModelUser.findOne({ _id: accountID });
+        if (!user) {
+            return res.status(400).json(utils.JParser('Invalid user, Try again later', false, []));
+        }
+
+        // 1. Get total tasks assigned to the merchandiser
+        const totalTasks = await ModelTask.countDocuments({ user: accountID });
+
+        // 2. Get total products (distinct products from stocks created by the merchandiser)
+        const userStocks = await ModelStocks.find({ user: accountID }).select('product').lean();
+        const uniqueProductIds = [...new Set(userStocks.map(stock => stock.product?.toString()).filter(Boolean))];
+        const totalProducts = uniqueProductIds.length;
+
+        // 3. Get top 10 products with product name, image, level, price
+        // Group stocks by product and get the most recent stock for each product
+        const stocksWithProducts = await ModelStocks.find({ user: accountID })
+            .populate('product', 'productName productImage')
+            .select('product level price')
+            .sort({ _id: -1 })
+            .lean();
+
+        // Group by product and get the latest stock entry for each product
+        const productMap = new Map();
+        stocksWithProducts.forEach(stock => {
+            if (stock.product && stock.product._id) {
+                const productId = stock.product._id.toString();
+                if (!productMap.has(productId)) {
+                    productMap.set(productId, {
+                        productName: stock.product.productName || 'Unknown Product',
+                        productImage: stock.product.productImage || null,
+                        level: stock.level || null,
+                        price: stock.price || null
+                    });
+                }
+            }
+        });
+
+        // Convert to array and limit to top 10
+        const topProducts = Array.from(productMap.values()).slice(0, 10);
+
+        return res.json(utils.JParser('Merchandiser overview fetched successfully', true, {
+            totalTasks,
+            totalProducts,
+            topProducts
+        }));
     } catch (e) {
         throw new errorHandle(e.message, 500);
     }

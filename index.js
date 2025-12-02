@@ -1,5 +1,7 @@
 const express = require("express")
 const app = express()
+app.set('trust proxy', 1);
+
 const expressLayouts = require('express-ejs-layouts');
 const cors = require('cors')
 const path = require('path');
@@ -11,6 +13,7 @@ const Sartor = require('./routes/route.sartor')
 
 const mongoose = require('mongoose');
 const { errorHandle } = require("./core");
+const security = require('./middleware/middleware.security');
 
 // const dotenv = require("dotenv")
 // dotenv.config()
@@ -41,6 +44,15 @@ app.use(cors({
 }));
 
 app.options('*', cors());
+
+app.use(security.helmetSecurity);
+app.use(security.customSecurityHeaders);
+app.use(security.mongoSanitize);
+app.use(security.hppProtection);
+app.use(security.xssProtection);
+app.use('/api/v1/auth', security.authLimiter);
+app.use('/api/v1', security.apiLimiter);
+app.use(security.requestTimeout(30000));
 
 app.use(expressLayouts);
 app.set('view engine', 'ejs');
