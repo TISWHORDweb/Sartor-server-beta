@@ -10,7 +10,7 @@ const ModelBatch = require("../models/model.batch");
 const ModelUser = require("../models/model.user");
 const ModelRestockProduct = require("../models/model.restockProduct");
 const ModelStocks = require("../models/model.stocks");
-const ModelLead = require("../models/model.lead");
+const ModelCustomer = require("../models/model.customer");
 const ModelTask = require("../models/model.task");
 
 
@@ -1121,7 +1121,7 @@ exports.CreateStock = useAsync(async (req, res) => {
             status: Joi.string().valid("Low", "Medium", "High").optional(),
             price: Joi.number().min(0).optional(),
             product: Joi.string().required(),
-            lead: Joi.string().required()
+            customer: Joi.string().required()
         });
 
         const validator = await schema.validateAsync(req.body);
@@ -1148,10 +1148,10 @@ exports.CreateStock = useAsync(async (req, res) => {
             return res.status(404).json(utils.JParser('Product not found', false, null));
         }
 
-        // Verify lead exists
-        const lead = await ModelLead.findById(validator.lead);
-        if (!lead) {
-            return res.status(404).json(utils.JParser('Lead not found', false, null));
+        // Verify customer exists
+        const customer = await ModelCustomer.findById(validator.customer);
+        if (!customer) {
+            return res.status(404).json(utils.JParser('Customer not found', false, null));
         }
 
         const stock = await ModelStocks.create({
@@ -1180,7 +1180,7 @@ exports.UpdateStock = useAsync(async (req, res) => {
             status: Joi.string().valid("Low", "Medium", "High").optional(),
             price: Joi.number().min(0).optional(),
             product: Joi.string().optional(),
-            lead: Joi.string().optional()
+            customer: Joi.string().optional()
         });
 
         const validator = await schema.validateAsync(req.body);
@@ -1194,11 +1194,11 @@ exports.UpdateStock = useAsync(async (req, res) => {
             }
         }
 
-        // If lead is being updated, verify it exists
-        if (validator.lead) {
-            const lead = await ModelLead.findById(validator.lead);
-            if (!lead) {
-                return res.status(404).json(utils.JParser('Lead not found', false, null));
+        // If customer is being updated, verify it exists
+        if (validator.customer) {
+            const customer = await ModelCustomer.findById(validator.customer);
+            if (!customer) {
+                return res.status(404).json(utils.JParser('Customer not found', false, null));
             }
         }
 
@@ -1264,9 +1264,9 @@ exports.GetAllStocks = useAsync(async (req, res) => {
             filter.product = req.query.product;
         }
 
-        // Add lead filter if provided
-        if (req.query.lead) {
-            filter.lead = req.query.lead;
+        // Add customer filter if provided
+        if (req.query.customer) {
+            filter.customer = req.query.customer;
         }
 
         // Add status filter if provided
@@ -1290,7 +1290,10 @@ exports.GetAllStocks = useAsync(async (req, res) => {
 
         let query = ModelStocks.find(filter)
             .populate('product')
-            .populate('lead')
+            .populate({
+                path: 'customer',
+                populate: { path: 'lead' }
+            })
             .populate('admin', '-password -token')
             .populate('user', '-password -token')
             .sort({ _id: -1 })
@@ -1324,7 +1327,10 @@ exports.GetSingleStock = useAsync(async (req, res) => {
 
         const stock = await ModelStocks.findById(id)
             .populate('product')
-            .populate('lead')
+            .populate({
+                path: 'customer',
+                populate: { path: 'lead' }
+            })
             .populate('admin', '-password -token')
             .populate('user', '-password -token')
             .lean();
@@ -1355,9 +1361,9 @@ exports.GetUserStocks = useAsync(async (req, res) => {
             filter.product = req.query.product;
         }
 
-        // Add lead filter if provided
-        if (req.query.lead) {
-            filter.lead = req.query.lead;
+        // Add customer filter if provided
+        if (req.query.customer) {
+            filter.customer = req.query.customer;
         }
 
         // Add status filter if provided
@@ -1381,7 +1387,10 @@ exports.GetUserStocks = useAsync(async (req, res) => {
 
         let query = ModelStocks.find(filter)
             .populate('product')
-            .populate('lead')
+            .populate({
+                path: 'customer',
+                populate: { path: 'lead' }
+            })
             .populate('admin', '-password -token')
             .populate('user', '-password -token')
             .sort({ _id: -1 })
@@ -1437,9 +1446,9 @@ exports.GetCompanyStocks = useAsync(async (req, res) => {
             filter.product = req.query.product;
         }
 
-        // Add lead filter if provided
-        if (req.query.lead) {
-            filter.lead = req.query.lead;
+        // Add customer filter if provided
+        if (req.query.customer) {
+            filter.customer = req.query.customer;
         }
 
         // Add status filter if provided
@@ -1468,7 +1477,10 @@ exports.GetCompanyStocks = useAsync(async (req, res) => {
 
         let query = ModelStocks.find(filter)
             .populate('product')
-            .populate('lead')
+            .populate({
+                path: 'customer',
+                populate: { path: 'lead' }
+            })
             .populate('admin', '-password -token')
             .populate('user', '-password -token')
             .sort({ _id: -1 })

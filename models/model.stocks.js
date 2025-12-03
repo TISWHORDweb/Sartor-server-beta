@@ -32,9 +32,9 @@ const stocksSchema = new mongoose.Schema({
         ref: 'model-product',
         required: true
     },
-    lead: {
+    customer: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'model-lead',
+        ref: 'model-customer',
         required: true
     },
     admin: {
