@@ -371,14 +371,25 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
             }
         }
 
+        // Prepare update object
+        const updateData = {
+            status,
+            deliveryCode,
+            updated_at: Date.now()
+        };
+
+        // If status is "Delivered", include deliveredTo and deliveredStatus
+        if (status === "Delivered") {
+            updateData.deliveredStatus = true;
+            if (deliveredTo) {
+                updateData.deliveredTo = deliveredTo;
+            }
+        }
+
         // Only update status if stock validation passes
         const updatedLPO = await ModelLpo.findByIdAndUpdate(
             id,
-            {
-                status,
-                deliveryCode,
-                updated_at: Date.now()
-            },
+            updateData,
             { new: true }
         );
 
@@ -395,8 +406,6 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
                     status: "Active"
                 });
             }
-
-            await lpo.update({ deliveredStatus: true, deliveredTo })
         }
 
         if (status === "In Transit") {
