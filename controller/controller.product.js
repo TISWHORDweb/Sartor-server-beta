@@ -219,12 +219,23 @@ exports.GetAllProducts = useAsync(async (req, res) => {
                     productRestocks[0].creationDateTime
                 : null;
 
+            // Find newest batch (by creationDateTime descending)
+            const newestBatch = productBatches.length > 0
+                ? productBatches.sort((a, b) => {
+                    const aTime = a.creationDateTime || 0;
+                    const bTime = b.creationDateTime || 0;
+                    return bTime - aTime;
+                })[0]
+                : null;
+
             return {
                 ...product,
                 batches: productBatches,
-                // restocks: productRestocks.slice(0, 5),
                 lastRestock,
-                totalQuantityAvailable
+                totalQuantityAvailable,
+                sellingPrice: newestBatch?.sellingPrice || null,
+                supplyPrice: newestBatch?.supplyPrice || null,
+                expiryDate: newestBatch?.expiryDate || null
             };
         });
 
@@ -264,8 +275,10 @@ exports.GetSingleProduct = useAsync(async (req, res) => {
             return res.status(404).json(utils.JParser('Product not found', false, null));
         }
 
-        // 2. Fetch all batches for this product
-        const batches = await ModelBatch.find({ product: id }).lean();
+        // 2. Fetch all batches for this product (sorted by newest first)
+        const batches = await ModelBatch.find({ product: id })
+            .sort({ creationDateTime: -1 })
+            .lean();
 
         // 3. Get all unique supplier IDs from batches
         const supplierIds = [...new Set(batches.map(b => b.supplier).filter(Boolean))];
@@ -286,15 +299,34 @@ exports.GetSingleProduct = useAsync(async (req, res) => {
 
         // 6. Fetch all restocks for this product
         const restocks = await ModelRestock.find({ product: id })
-            .sort({ creationDateTime: -1 }) // Newest first
+            .sort({ creationDateTime: -1 })
             .select('quantity creationDateTime updated_at')
             .lean();
 
-        // 7. Combine all data
+        // 7. Calculate total quantity
+        const totalQuantityAvailable = batches.reduce((sum, b) => {
+            if (!b.quantity) return sum;
+            return sum + Number(b.quantity);
+        }, 0);
+
+        // 8. Find newest batch (by creationDateTime descending)
+        const newestBatch = batches.length > 0
+            ? batches.sort((a, b) => {
+                const aTime = a.creationDateTime || 0;
+                const bTime = b.creationDateTime || 0;
+                return bTime - aTime;
+            })[0]
+            : null;
+
+        // 9. Combine all data
         const productWithData = {
             ...product,
             batches: batchesWithSuppliers,
-            restocks: restocks
+            restocks: restocks,
+            totalQuantityAvailable,
+            sellingPrice: newestBatch?.sellingPrice || null,
+            supplyPrice: newestBatch?.supplyPrice || null,
+            expiryDate: newestBatch?.expiryDate || null
         };
 
         return res.json(utils.JParser('Product fetched successfully', true, productWithData));
@@ -1010,24 +1042,34 @@ exports.calculateProductPricing = useAsync(async (req, res) => {
             throw new errorHandle('No available batches found for this product', 404);
         }
 
-        // Calculate weighted average cost price
+        // Calculate weighted average cost price (using supplyPrice as cost)
         let totalCostValue = 0;
         let totalQuantity = 0;
+        let totalSellingValue = 0;
 
         batches.forEach(batch => {
-            const quantity = batch.quantity === 0 ? 1 : batch.quantity
-            totalCostValue += batch.sellingPrice * quantity;
+            const quantity = batch.quantity === 0 ? 1 : batch.quantity;
+            const supplyPrice = batch.supplyPrice || 0;
+            const sellingPrice = batch.sellingPrice || 0;
+            
+            totalCostValue += supplyPrice * quantity;
+            totalSellingValue += sellingPrice * quantity;
             totalQuantity += quantity;
         });
 
         const averageCostPrice = totalCostValue / totalQuantity;
-        // Calculate suggested selling price (you can adjust the markup percentage)
-        const markupPercentage = 1.1; // 30% markup
-        const suggestedSellingPrice = averageCostPrice * markupPercentage;
+        const averageSellingPrice = totalSellingValue / totalQuantity;
+
+        // Calculate markup percentage: (selling price - cost) / cost × 100
+        let markupPercentage = 0;
+        if (averageCostPrice > 0) {
+            markupPercentage = ((averageSellingPrice - averageCostPrice) / averageCostPrice) * 100;
+        }
 
         // Round to 2 decimal places
         const roundedAverageCost = Math.round(averageCostPrice * 100) / 100;
-        const roundedSuggestedPrice = Math.round(suggestedSellingPrice * 100) / 100;
+        const roundedAverageSelling = Math.round(averageSellingPrice * 100) / 100;
+        const roundedMarkupPercentage = Math.round(markupPercentage * 100) / 100;
 
         // Get current selling price for comparison
         const currentSellingPrice = product.price || 0;
@@ -1039,16 +1081,20 @@ exports.calculateProductPricing = useAsync(async (req, res) => {
             },
             batchStatistics: {
                 totalBatches: batches.length,
-                markupPercentage,
                 totalQuantity: totalQuantity,
                 averageCostPrice: roundedAverageCost,
+                averageSellingPrice: roundedAverageSelling,
+                markupPercentage: roundedMarkupPercentage,
                 currentSellingPrice: currentSellingPrice,
-                suggestedSellingPrice: roundedSuggestedPrice,
             },
             batches: batches.map(batch => ({
                 batchNumber: batch.batchNumber,
-                sellingPrice: batch.sellingPrice,
-                quantity: batch.quantity
+                supplyPrice: batch.supplyPrice || 0,
+                sellingPrice: batch.sellingPrice || 0,
+                quantity: batch.quantity,
+                batchMarkup: batch.supplyPrice > 0 && batch.sellingPrice > 0
+                    ? Math.round(((batch.sellingPrice - batch.supplyPrice) / batch.supplyPrice) * 100 * 100) / 100
+                    : 0
             }))
         }));
 

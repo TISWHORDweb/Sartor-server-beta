@@ -40,6 +40,26 @@ exports.CreateLpo = useAsync(async (req, res) => {
 
         const validator = await schema.validateAsync(req.body);
 
+        // Validate that all products have a price greater than 0
+        if (validator.product && validator.product.length > 0) {
+            const productIds = validator.product.map(p => p.product).filter(Boolean);
+            
+            if (productIds.length > 0) {
+                const products = await ModelProduct.find({ _id: { $in: productIds } }).select('productName price');
+                
+                const productsWithoutPrice = products.filter(p => !p.price || p.price === 0);
+                
+                if (productsWithoutPrice.length > 0) {
+                    const productNames = productsWithoutPrice.map(p => p.productName || 'Unknown').join(', ');
+                    return res.status(400).json(utils.JParser(
+                        `Cannot create LPO: The following products have no price or price is 0: ${productNames}. Please set a price for these products before creating an LPO.`,
+                        false,
+                        []
+                    ));
+                }
+            }
+        }
+
         if (accountType === "user") {
             validator.user = accountID
             const user = await ModelUser.findOne({ _id: accountID })
