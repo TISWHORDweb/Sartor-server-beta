@@ -413,20 +413,20 @@ exports.updateLPOStatus = useAsync(async (req, res) => {
             { new: true }
         );
 
-        const existingCustomer = await ModelCustomer.findOne({ lead: lpo.lead });
+        // const existingCustomer = await ModelCustomer.findOne({ lead: lpo.lead });
 
-        if (status === "Delivered") {
-            if (!existingCustomer) {
-                const customerId = await genID(3)
-                const newCustomer = await ModelCustomer.create({
-                    lead: lpo.lead,
-                    user: updatedLPO.user,
-                    admin: updatedLPO.admin,
-                    customerId,
-                    status: "Active"
-                });
-            }
-        }
+        // if (status === "Delivered") {
+        //     if (!existingCustomer) {
+        //         const customerId = await genID(3)
+        //         const newCustomer = await ModelCustomer.create({
+        //             lead: lpo.lead,
+        //             user: updatedLPO.user,
+        //             admin: updatedLPO.admin,
+        //             customerId,
+        //             status: "Active"
+        //         });
+        //     }
+        // }
 
         if (status === "In Transit") {
             const lpoProducts = await ModelLpoProduct.find({ lpo: id }).populate("product");
@@ -833,13 +833,38 @@ exports.updateLeadStatus = useAsync(async (req, res) => {
             { new: true }
         );
 
+        const existingCustomer = await ModelCustomer.findOne({ lead: id });
+
+        let customer = null;
+        if (status === "Payment Confirmed") {
+            if (!existingCustomer) {
+                const customerId = await genID(3);
+                customer = await ModelCustomer.create({
+                    lead: id,
+                    user: lead.user,
+                    admin: lead.admin,
+                    customerId,
+                    status: "Active"
+                });
+            } else {
+                customer = existingCustomer;
+            }
+        }
+
         // Prepare response
+        let responseMessage = 'Lead status updated successfully';
         let response = {
-            lead: updatedLead,
-            message: 'Lead status updated successfully'
+            lead: updatedLead
         };
 
-        return res.json(utils.JParser(response.message, true, response));
+        if (status === "Payment Confirmed" && customer) {
+            response.customer = customer;
+            if (!existingCustomer) {
+                responseMessage = 'Lead status updated successfully and customer created';
+            }
+        }
+
+        return res.json(utils.JParser(responseMessage, true, response));
 
     } catch (e) {
         throw new errorHandle(e.message, 400);
