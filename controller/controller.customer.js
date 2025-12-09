@@ -530,7 +530,7 @@ exports.CreateLead = useAsync(async (req, res) => {
 
         const existingLead = await ModelLead.findOne({ email: validator.email })
         if (existingLead) {
-            return res.status(400).json(utils.JParser('Sorry theres another lead register with this email, chabge it and try again ', false, []))
+            return res.status(400).json(utils.JParser('Sorry this lead have been registered by another rep', false, []))
         }
 
         let createdContacts;
