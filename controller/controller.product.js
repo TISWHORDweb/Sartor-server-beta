@@ -1084,7 +1084,7 @@ exports.calculateProductPricing = useAsync(async (req, res) => {
                 totalQuantity: totalQuantity,
                 averageCostPrice: roundedAverageCost,
                 averageSellingPrice: roundedAverageSelling,
-                markupPercentage: roundedMarkupPercentage,
+                // markupPercentage: roundedMarkupPercentage,
                 currentSellingPrice: currentSellingPrice,
             },
             batches: batches.map(batch => ({
