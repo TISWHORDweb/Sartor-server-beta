@@ -190,25 +190,25 @@ exports.uploadLabel = useAsync(async (req, res) => {
     try {
         const form = new FormData();
         if (req.file) {
-            form.append('images', fs.createReadStream(req.file.path), {
+            form.append('image', fs.createReadStream(req.file.path), {
                 filename: req.file.originalname,
                 contentType: req.file.mimetype
             });
         }
-        const url = `${process.env.LABEL_BASE_URL}/upload`
-        const apiResponse = await axios.post(url, form,
-            { headers: form.getHeaders() }
-        );
+        if (req.body && Object.keys(req.body).length) {
+            try {
+                form.append('metadata', JSON.stringify(req.body));
+            } catch (err) {
+                form.append('metadata', '{}');
+            }
+        }
+        const url = `${process.env.LABEL_BASE_URL}/reference/upload`;
+        const apiResponse = await axios.post(url, form, { headers: form.getHeaders() });
     
         console.log(url);
         console.log(apiResponse);
 
-        // Fire-and-forget training API
-        axios.post(`${process.env.LABEL_BASE_URL}/train`).catch(err => console.error('Training API failed (non-critical):', err));
-
-        console.log("training")
-
-        return res.json(utils.JParser('Label processed successfully', true, apiResponse.data));
+        return res.json(utils.JParser('Reference product saved successfully', true, apiResponse.data));
 
     } catch (e) {
         console.log("newerror.  " + e);
@@ -244,7 +244,11 @@ exports.verifyLabel = useAsync(async (req, res) => {
         }
     } catch (e) {
         console.log(e);
-
-        return res.status(500).json(utils.JParser(e.message, false, []));
+        const status = e?.response?.status;
+        const data = e?.response?.data;
+        if (status === 404 && data && data.in_database === false) {
+            return res.status(404).json(utils.JParser(data.error || 'Product not in database', false, data));
+        }
+        return res.status(status || 500).json(utils.JParser(e.message, false, []));
     }
 });
