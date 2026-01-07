@@ -116,7 +116,7 @@ exports.DeleteProduct = useAsync(async (req, res) => {
         throw new errorHandle(e.message, 500);
     }
 });
-
+  
 exports.GetAllProducts = useAsync(async (req, res) => {
     try {
         const accountType = req.userType;
