@@ -63,7 +63,11 @@ exports.requestSizeLimit = (req, res, next) => {
 
 exports.requestTimeout = (timeout = 30000) => {
     return (req, res, next) => {
-        req.setTimeout(timeout, () => {
+        const isMultipart = (req.headers['content-type'] || '').includes('multipart/form-data');
+        const isLongVerify = req.path && req.path.includes('/label/verify');
+        const extendedTimeout = (isMultipart || isLongVerify) ? Math.max(timeout, 180000) : timeout;
+
+        req.setTimeout(extendedTimeout, () => {
             if (!res.headersSent) {
                 res.status(408).json({
                     status: false,
