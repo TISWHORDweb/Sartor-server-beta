@@ -6,6 +6,8 @@ const { useAsync, utils, errorHandle, } = require('../core');
 const axios = require('axios');
 const FormData = require('form-data');
 const ModelLabel = require("../models/model.Label");
+const ModelProduct = require("../models/model.product");
+const ModelBatch = require("../models/model.batch");
 const Joi = require("joi");
 const { uploadToCloudinary } = require("../core/core.cloudinary");
 
@@ -44,6 +46,15 @@ exports.GetAllLabels = useAsync(async (req, res) => {
 
         // Base filter
         let filter = { admin };
+        if (req.query.batch) {
+            filter.batch = req.query.batch;
+        }
+        if (req.query.batch) {
+            filter.batch = req.query.batch;
+        }
+        if (req.query.batch) {
+            filter.batch = req.query.batch;
+        }
 
         // Search support
         if (search) {
@@ -188,13 +199,50 @@ exports.uploadLabel = useAsync(async (req, res) => {
     let tempFiles = [];
 
     try {
+        const { productId, batchId } = req.body;
         const form = new FormData();
+        let imagePath = '';
+
         if (req.file) {
+            // Upload to Cloudinary and get URL
+            try {
+                console.log("Starting Cloudinary upload for:", req.file.path);
+                imagePath = await uploadToCloudinary(req.file.path);
+                console.log("Cloudinary Upload Successful:", imagePath);
+
+                // Optional: Clean up local file after upload
+                // fs.unlinkSync(req.file.path); 
+            } catch (cloudError) {
+                console.error("Cloudinary Upload Failed:", cloudError);
+                // Fallback to local path or throw error? 
+                // For now, let's throw to ensure data consistency
+                throw new Error("Failed to upload image to cloud storage");
+            }
+
+            // We still need to send a stream to the external API if that's what it expects
+            // But for our DB, we use the Cloudinary URL
             form.append('image', fs.createReadStream(req.file.path), {
                 filename: req.file.originalname,
                 contentType: req.file.mimetype
             });
         }
+
+        // Update product if productId is provided
+        if (productId) {
+            await ModelProduct.findByIdAndUpdate(productId, {
+                productImage: imagePath, // Save Cloudinary URL
+                updated_at: Date.now()
+            });
+        }
+
+        // Update batch if batchId is provided
+        if (batchId) {
+            await ModelBatch.findByIdAndUpdate(batchId, {
+                image: imagePath, // Save Cloudinary URL
+                updated_at: Date.now()
+            });
+        }
+
         if (req.body && Object.keys(req.body).length) {
             try {
                 form.append('metadata', JSON.stringify(req.body));
@@ -217,6 +265,57 @@ exports.uploadLabel = useAsync(async (req, res) => {
     }
 });
 
+
+exports.VerifyPin = useAsync(async (req, res) => {
+    try {
+        const { pin } = req.body;
+        if (!pin) throw new errorHandle("Pin is required", 400);
+
+        const label = await ModelLabel.findOne({ pin })
+            .populate('product')
+            .populate({ 
+                path: 'batch',
+                populate: { path: 'product' } 
+            });
+
+        if (label) {
+             const MAX_VERIFICATIONS = 2;
+             
+             // Increment count
+             label.verificationCount = (label.verificationCount || 0) + 1;
+             label.isVerified = true;
+             await label.save();
+
+             // Check if it exceeds threshold
+             if (label.verificationCount > MAX_VERIFICATIONS) {
+                 return res.status(403).json(utils.JParser('Warning: Potential Counterfeit. This pin has exceeded the maximum verification limit.', false, {
+                     product: label.product,
+                     batch: label.batch,
+                     verificationCount: label.verificationCount,
+                     pin: label.pin,
+                     isFlagged: true
+                 }));
+             }
+
+             let message = 'Product is authentic';
+             if (label.verificationCount > 1) {
+                 message = `Product is authentic (Note: Previously verified ${label.verificationCount - 1} times)`;
+             }
+
+             return res.json(utils.JParser(message, true, {
+                 product: label.product,
+                 batch: label.batch,
+                 verificationCount: label.verificationCount,
+                 pin: label.pin,
+                 isFlagged: false
+             }));
+        } else {
+             return res.status(404).json(utils.JParser('Invalid Pin. Product not found.', false, null));
+        }
+    } catch (e) {
+        throw new errorHandle(e.message, 500);
+    }
+});
 
 exports.verifyLabel = useAsync(async (req, res) => {
     try {

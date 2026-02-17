@@ -11,6 +11,18 @@ const labelSchema = new mongoose.Schema({
         ref: 'model-product',
         required: true
     },
+    pin: {
+        type: String,
+        // unique: true, // Unique is good but need to ensure it doesn't conflict globally or handle errors
+    },
+    isVerified: {
+        type: Boolean,
+        default: false
+    },
+    verificationCount: {
+        type: Number,
+        default: 0
+    },
     image: {
         type: String,
     },
@@ -19,8 +31,8 @@ const labelSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['failed', 'completed', 'training'],
-        default: 'training'
+        enum: ['failed', 'completed', 'training', 'active'],
+        default: 'active'
     },
     isDeleted: {
         type: Boolean,

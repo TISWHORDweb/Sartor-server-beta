@@ -2,45 +2,59 @@
  * Slantapp code and properties {www.slantapp.io}
  */
 
-const { errorHandle, useAsync, utils } = require('../core');
+const { errorHandle, useAsync, utils } = require("../core");
 const CryptoJS = require("crypto-js");
-const ModelUser = require('../models/model.user');
-const ModelAdmin = require('../models/model.admin');
-const ModelSartor = require('../models/model.sartor');
+const ModelUser = require("../models/model.user");
+const ModelAdmin = require("../models/model.admin");
+const ModelSartor = require("../models/model.sartor");
 
 //body safe state
 exports.bodyParser = (req, res, next) => {
-  if (!Object.keys(req.body).length > 0) throw new errorHandle("the document body is empty", 202);
+  if (!Object.keys(req.body).length > 0)
+    throw new errorHandle("the document body is empty", 202);
   else next();
-}
+};
 
-const PRIVILEGED_ROLES = ['admin'];
+const PRIVILEGED_ROLES = ["admin"];
 
 //universal
 exports.authMiddleware = useAsync(async (req, res, next) => {
+ 
   const sToken = req.headers["s-token"];
 
   if (!sToken || sToken === "undefined") {
     return res
       .status(401)
-      .json(utils.JParser("Unauthorized Access, Use a valid token and try again", false, []));
+      .json(
+        utils.JParser(
+          "Unauthorized Access, Use a valid token and try again",
+          false,
+          [],
+        ),
+      );
   }
   let adminID;
   // check user or admin
   let account = await ModelUser.findOne({ token: sToken });
   let accountType = "user";
-  adminID = account?.admin
+  adminID = account?.admin;
 
   if (!account) {
     account = await ModelAdmin.findOne({ token: sToken });
     accountType = "admin";
-    adminID = account?._id
+    adminID = account?._id;
   }
 
   if (!account) {
     return res
       .status(401)
-      .json(utils.JParser("Invalid token code or token, Use a valid token and try again", false, []));
+      .json(
+        utils.JParser(
+          "Invalid token code or token, Use a valid token and try again",
+          false,
+          [],
+        ),
+      );
   }
 
   // decrypt last login timestamp
@@ -64,7 +78,13 @@ exports.authMiddleware = useAsync(async (req, res, next) => {
   if (account.blocked) {
     return res
       .status(403)
-      .json(utils.JParser("Token is valid but not authorized for this route", false, []));
+      .json(
+        utils.JParser(
+          "Token is valid but not authorized for this route",
+          false,
+          [],
+        ),
+      );
   }
 
   // attach to req
@@ -76,9 +96,9 @@ exports.authMiddleware = useAsync(async (req, res, next) => {
   return next();
 });
 
-
 exports.roleMiddleware = (roles) => {
   return (req, res, next) => {
+    // return next(); // --- LOCAL TESTING BYPASS ---
     const userRole = req.user.userRole;
 
     // Automatically allow privileged roles
@@ -88,7 +108,7 @@ exports.roleMiddleware = (roles) => {
 
     // Check if user's role is included in the allowed roles
     if (!roles.includes(userRole)) {
-      return res.status(403).send({ error: 'Access denied' });
+      return res.status(403).send({ error: "Access denied" });
     }
 
     next();
@@ -101,7 +121,13 @@ exports.authSartorMiddleware = useAsync(async (req, res, next) => {
   if (!sToken || sToken === "undefined") {
     return res
       .status(401)
-      .json(utils.JParser("Unauthorized Access, Use a valid token and try again", false, []));
+      .json(
+        utils.JParser(
+          "Unauthorized Access, Use a valid token and try again",
+          false,
+          [],
+        ),
+      );
   }
 
   let account = await ModelSartor.findOne({ token: sToken });
@@ -110,19 +136,31 @@ exports.authSartorMiddleware = useAsync(async (req, res, next) => {
   if (!account) {
     return res
       .status(401)
-      .json(utils.JParser("Invalid token code or token, Use a valid token and try again", false, []));
+      .json(
+        utils.JParser(
+          "Invalid token code or token, Use a valid token and try again",
+          false,
+          [],
+        ),
+      );
   }
 
   if (account.blocked) {
     return res
       .status(403)
-      .json(utils.JParser("Token is valid but not authorized for this route", false, []));
+      .json(
+        utils.JParser(
+          "Token is valid but not authorized for this route",
+          false,
+          [],
+        ),
+      );
   }
 
   // attach to req
   req.userId = account._id;
   req.user = account;
-  req.userType = accountType; 
+  req.userType = accountType;
 
   return next();
 });

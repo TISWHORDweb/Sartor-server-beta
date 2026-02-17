@@ -129,6 +129,7 @@ const {
   UpdateLabel,
   DeleteLabel,
   verifyLabel,
+  VerifyPin,
 } = require("../controller/controller.label");
 const { upload } = require("../core/core.utils");
 const { universalSearch } = require("../controller/controller.search");
@@ -143,61 +144,61 @@ router.post(
   "/user/create",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["admin"])),
-  createUser
+  createUser,
 );
 router.get(
   "/user/details",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  getUser
+  getUser,
 );
 router.put(
   "/user/edit",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  editUser
+  editUser,
 );
 router.get(
   "/users",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["admin"])),
-  allUser
+  allUser,
 );
 router.delete(
   "/user/delete",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["admin"])),
-  deleteUser
+  deleteUser,
 );
 router.put(
   "/user/password",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  UpdatePasswordChanged
+  UpdatePasswordChanged,
 );
 router.get(
   "/user/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  singleUser
+  singleUser,
 );
 router.get(
   "/user/role/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["admin"])),
-  GetUsersByRole
+  GetUsersByRole,
 );
 router.get(
   "/dashboard",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetDashboardSummary
+  GetDashboardSummary,
 );
 router.put(
   "/user/password-change",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  PasswordUpdate
+  PasswordUpdate,
 );
 
 ////TASKS
@@ -205,43 +206,43 @@ router.post(
   "/task/create",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  CreateTask
+  CreateTask,
 );
 router.put(
   "/task/edit",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  editTask
+  editTask,
 );
 router.delete(
   "/task/delete",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  deleteTasks
+  deleteTasks,
 );
 router.get(
   "/tasks",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  getTasks
+  getTasks,
 );
 router.get(
   "/task/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  singleTask
+  singleTask,
 );
 router.put(
   "/task/status/update",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  changeTaskStatus
+  changeTaskStatus,
 );
 router.get(
   "/tasks/status/:status",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  tasksByStatus
+  tasksByStatus,
 );
 
 //TASKS COMMENT
@@ -249,19 +250,19 @@ router.post(
   "/task/comment",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  taskComment
+  taskComment,
 );
 router.get(
   "/single/comment/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  singleTaskComment
+  singleTaskComment,
 );
 router.get(
   "/task/comment/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  taskComments
+  taskComments,
 );
 
 //LEADS
@@ -269,43 +270,43 @@ router.post(
   "/lead",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  CreateLead
+  CreateLead,
 );
 router.put(
   "/lead/edit/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  UpdateLead
+  UpdateLead,
 );
 router.put(
   "/lead/contact/edit/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  UpdateLeadContact
+  UpdateLeadContact,
 );
 router.delete(
   "/lead/delete/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  DeleteLead
+  DeleteLead,
 );
 router.get(
   "/leads",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetAllLeads
+  GetAllLeads,
 );
 router.get(
   "/lead/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetSingleLead
+  GetSingleLead,
 );
 router.put(
   "/lead/status/update",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  updateLeadStatus
+  updateLeadStatus,
 );
 
 //LPO
@@ -313,37 +314,37 @@ router.post(
   "/lpo",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  CreateLpo
+  CreateLpo,
 );
 router.put(
   "/lpo/edit/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  UpdateLpo
+  UpdateLpo,
 );
 router.delete(
   "/lpo/delete/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  DeleteLpo
+  DeleteLpo,
 );
 router.get(
   "/lpos",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetAllLpos
+  GetAllLpos,
 );
 router.get(
   "/lpo/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetSingleLpo
+  GetSingleLpo,
 );
 router.put(
   "/lpo/status/update",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  updateLPOStatus
+  updateLPOStatus,
 );
 
 //SUPPLIER
@@ -351,31 +352,31 @@ router.post(
   "/supplier",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  CreateSupplier
+  CreateSupplier,
 );
 router.put(
   "/supplier/edit/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  UpdateSupplier
+  UpdateSupplier,
 );
 router.delete(
   "/supplier/delete/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  DeleteSupplier
+  DeleteSupplier,
 );
 router.get(
   "/suppliers",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetAllSuppliers
+  GetAllSuppliers,
 );
 router.get(
   "/supplier/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetSingleSupplier
+  GetSingleSupplier,
 );
 
 //PRODUCT
@@ -383,49 +384,49 @@ router.post(
   "/product",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  CreateProduct
+  CreateProduct,
 );
 router.put(
   "/product/edit/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  UpdateProduct
+  UpdateProduct,
 );
 router.delete(
   "/product/delete/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  DeleteProduct
+  DeleteProduct,
 );
 router.get(
   "/products",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetAllProducts
+  GetAllProducts,
 );
 router.get(
   "/product/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetSingleProduct
+  GetSingleProduct,
 );
 router.get(
   "/product/batches/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetAllProductBatch
+  GetAllProductBatch,
 );
 router.get(
   "/product/price/suggestion/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  calculateProductPricing
+  calculateProductPricing,
 );
 router.put(
   "/product/price",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  updateProductPrice
+  updateProductPrice,
 );
 
 //RESTOCK
@@ -433,37 +434,37 @@ router.post(
   "/restock",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  CreateRestock
+  CreateRestock,
 );
 router.put(
   "/restock/edit/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  UpdateRestock
+  UpdateRestock,
 );
 router.put(
   "/restock/product/edit/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  UpdateRestockProduct
+  UpdateRestockProduct,
 );
 router.delete(
   "/restock/delete/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  DeleteRestock
+  DeleteRestock,
 );
 router.get(
   "/restocks",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetAllRestocks
+  GetAllRestocks,
 );
 router.get(
   "/restock/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetSingleRestock
+  GetSingleRestock,
 );
 
 //INVOICE
@@ -471,25 +472,25 @@ router.delete(
   "/invoice/delete/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  DeleteInvoice
+  DeleteInvoice,
 );
 router.get(
   "/invoices",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetAllInvoices
+  GetAllInvoices,
 );
 router.get(
   "/invoice/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetSingleInvoice
+  GetSingleInvoice,
 );
 router.put(
   "/invoice/status/update",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  changeInvoiceStatus
+  changeInvoiceStatus,
 );
 
 //BATCH
@@ -497,31 +498,31 @@ router.post(
   "/batch",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  CreateBatch
+  CreateBatch,
 );
 router.put(
   "/batch/edit/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  UpdateBatch
+  UpdateBatch,
 );
 router.delete(
   "/batch/delete/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  DeleteBatch
+  DeleteBatch,
 );
 router.get(
   "/batchs",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetAllBatches
+  GetAllBatches,
 );
 router.get(
   "/batch/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetSingleBatch
+  GetSingleBatch,
 );
 
 //STOCK
@@ -529,83 +530,84 @@ router.post(
   "/stock",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  CreateStock
+  CreateStock,
 );
 router.put(
   "/stock/edit/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  UpdateStock
+  UpdateStock,
 );
 router.delete(
   "/stock/delete/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  DeleteStock
+  DeleteStock,
 );
 router.get(
   "/stocks",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetAllStocks
+  GetAllStocks,
 );
 router.get(
   "/stock/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetSingleStock
+  GetSingleStock,
 );
 router.get(
   "/stocks/user",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetUserStocks
+  GetUserStocks,
 );
 router.get(
   "/stocks/company",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetCompanyStocks
+  GetCompanyStocks,
 );
 router.get(
   "/merchandiser/overview",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetMerchandiserOverview
+  GetMerchandiserOverview,
 );
 
 //LABEL
 router.post("/label/upload", upload.single("image"), uploadLabel);
 router.post("/label/verify", upload.single("image"), verifyLabel);
+router.post("/label/verify-pin", VerifyPin);
 router.post(
   "/label/webhook",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  labelTrainWebhook
+  labelTrainWebhook,
 );
 router.post(
   "/label",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  CreateLabel
+  CreateLabel,
 );
 router.put(
   "/label/edit/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  UpdateLabel
+  UpdateLabel,
 );
 router.delete(
   "/label/delete/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  DeleteLabel
+  DeleteLabel,
 );
 router.get(
   "/labels",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetAllLabels
+  GetAllLabels,
 );
 router.get("/label/:id", GetLabel);
 
@@ -614,25 +616,25 @@ router.get(
   "/customers",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetAllCustomer
+  GetAllCustomer,
 );
 router.put(
   "/customer/edit/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  UpdateCustomer
+  UpdateCustomer,
 );
 router.delete(
   "/customer/delete/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  DeleteCustomer
+  DeleteCustomer,
 );
 router.get(
   "/customer/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetCustomer
+  GetCustomer,
 );
 
 //UNIVERSAL SEARCH
@@ -640,7 +642,7 @@ router.post(
   "/search",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  universalSearch
+  universalSearch,
 );
 
 //CONTACT
@@ -649,25 +651,25 @@ router.put(
   "/contact/edit/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  UpdateContact
+  UpdateContact,
 );
 router.delete(
   "/contact/delete/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  DeleteContact
+  DeleteContact,
 );
 router.get(
   "/contacts",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetAllContacts
+  GetAllContacts,
 );
 router.get(
   "/contact/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetContact
+  GetContact,
 );
 
 //COMMISSION
@@ -680,31 +682,31 @@ router.post(
   "/permission",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  CreatePermission
+  CreatePermission,
 );
 router.put(
   "/permission/edit/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  UpdatePermission
+  UpdatePermission,
 );
 router.delete(
   "/permission/delete/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  DeletePermission
+  DeletePermission,
 );
 router.get(
   "/permissions",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetAllPermissions
+  GetAllPermissions,
 );
 router.get(
   "/permission/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetPermission
+  GetPermission,
 );
 
 //NOTIFICATION
@@ -712,37 +714,37 @@ router.post(
   "/notification",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  CreateNotification
+  CreateNotification,
 );
 router.put(
   "/notification/read/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  MarkAsRead
+  MarkAsRead,
 );
 router.put(
   "/notification/edit/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  UpdateNotification
+  UpdateNotification,
 );
 router.delete(
   "/notification/delete/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  DeleteNotification
+  DeleteNotification,
 );
 router.get(
   "/notifications",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetUserNotifications
+  GetUserNotifications,
 );
 router.get(
   "/notification/:id",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetNotification
+  GetNotification,
 );
 
 //ASSIGNMENT
@@ -750,13 +752,13 @@ router.post(
   "/assignment",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  assignUserToUser
+  assignUserToUser,
 );
 router.get(
   "/assignment",
   useAsync(authMiddleware),
   useAsync(roleMiddleware(["user"])),
-  GetUsersByAssignmentType
+  GetUsersByAssignmentType,
 );
 
 /**
@@ -766,7 +768,7 @@ router.get(
 router.all("/*", (req, res) => {
   throw new CoreError(
     `route not found ${req.originalUrl} using ${req.method} method`,
-    404
+    404,
   );
 });
 

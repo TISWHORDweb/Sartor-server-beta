@@ -57,6 +57,7 @@ app.use(security.requestTimeout(30000));
 app.use(expressLayouts);
 app.set('view engine', 'ejs');
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/docs', express.static(path.join(__dirname, 'docs')));
 
 app.use(expressLayouts);
