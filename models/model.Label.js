@@ -22,7 +22,7 @@ const labelSchema = new mongoose.Schema({
     verificationCount: {
         type: Number,
         default: 0
-    },
+    }, 
     image: {
         type: String,
     },
